@@ -1,4 +1,4 @@
-Computer Architecture Design and Simulation - Simulator
+Computer Architecture Design Simulator for Students
 
 This repository contains a multi-component integrated simulator to support
 computer architecture students writing simulation models of different
