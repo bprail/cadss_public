@@ -32,7 +32,7 @@ trace_reader* init(trace_sim_args* tsa)
     tr->getNextOp = getNextOp;
     
     int op = 0;
-    while ((op = getopt(tsa->arg_count, tsa->arg_list, "hdvc:p:o:n:b:t:s:m:")) != -1)
+    while ((op = getopt(tsa->arg_count, tsa->arg_list, "hdvc:p:o:n:i:b:t:s:m:")) != -1)
     {
         switch (op)
         {
