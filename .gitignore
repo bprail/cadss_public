@@ -1,0 +1,13 @@
+CMakeCache.txt
+CMakeFiles/*
+*/CMakeFiles/*
+cmake_install.cmake
+Makefile
+cadss-engine
+cache/libcache.so
+branch/libbranch.so
+processor/libprocessor.so
+trace/libtrace.so
+coherence/libcoherence.so
+interconnect/libinterconnect.so
+simpleCache/libsimpleCache.so
