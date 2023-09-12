@@ -18,6 +18,7 @@ typedef struct _sim_interface {
     int (*tick)(void);
     int (*finish)(int);
     int (*destroy)(void);
+    int cadssDbgWatchedComp;
 } sim_interface;
 
 // Flag set by engine if verbose flag is passed in,
