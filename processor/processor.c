@@ -11,6 +11,7 @@
 trace_reader* tr = NULL;
 cache* cs = NULL;
 branch* bs = NULL;
+processor* self = NULL;
 
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
@@ -67,7 +68,8 @@ processor* init(processor_sim_args* psa)
     pendingMem = calloc(processorCount, sizeof(int));
     memOpTag = calloc(processorCount, sizeof(int64_t));
 
-    return 0;
+    self = calloc(1, sizeof(processor));
+    return self;
 }
 
 const int64_t STALL_TIME = 100000;
