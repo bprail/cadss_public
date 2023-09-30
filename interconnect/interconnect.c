@@ -1,4 +1,5 @@
 #include <getopt.h>
+#include <stdio.h>
 
 #include <memory.h>
 #include <interconnect.h>
@@ -20,6 +21,7 @@ typedef struct _bus_req {
     int procNum;
     uint8_t shared;
     uint8_t data;
+    uint8_t dataAvail;
     struct _bus_req* next;
 } bus_req;
 
@@ -32,12 +34,27 @@ memory* memComp;
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
 
+static const char* req_state_map[] = {
+    [NONE] = "None",
+    [QUEUED] = "Queued",
+    [TRANSFERING_CACHE] = "Cache-to-Cache Transfer",
+    [TRANSFERING_MEMORY] = "Memory Transfer",
+    [WAITING_CACHE] = "Waiting for Cache",
+    [WAITING_MEMORY] = "Waiting for Memory",
+};
+
+static const char* req_type_map[]
+    = {[NO_REQ] = "None", [BUSRD] = "BusRd",   [BUSWR] = "BusRdX",
+       [DATA] = "Data",   [SHARED] = "Shared", [MEMORY] = "Memory"};
+
 const int CACHE_DELAY = 10;
 const int CACHE_TRANSFER = 10;
 
 void registerCoher(coher* cc);
 void busReq(bus_req_type brt, uint64_t addr, int procNum);
 int busReqCacheTransfer(uint64_t addr, int procNum);
+void printInterconnState(void);
+void interconnNotifyState(void);
 
 // Helper methods for per-processor request queues.
 static void enqBusRequest(bus_req* pr, int procNum)
@@ -75,6 +92,26 @@ static bus_req* deqBusRequest(int procNum)
     }
 
     return ret;
+}
+
+static int busRequestQueueSize(int procNum)
+{
+    int count = 0;
+    bus_req* iter;
+
+    if (!queuedRequests[procNum])
+    {
+        return 0;
+    }
+
+    iter = queuedRequests[procNum];
+    while (iter)
+    {
+        iter = iter->next;
+        count++;
+    }
+
+    return count;
 }
 
 interconn* init(inter_sim_args* isa)
@@ -118,6 +155,19 @@ void registerCoher(coher* cc)
     coherComp = cc;
 }
 
+void memReqCallback(int procNum, uint64_t addr)
+{
+    if (!pendingRequest)
+    {
+        return;
+    }
+
+    if (addr == pendingRequest->addr && procNum == pendingRequest->procNum)
+    {
+        pendingRequest->dataAvail = 1;
+    }
+}
+
 void busReq(bus_req_type brt, uint64_t addr, int procNum)
 {
     if (pendingRequest == NULL)
@@ -129,6 +179,7 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
         nextReq->currentState = WAITING_CACHE;
         nextReq->addr = addr;
         nextReq->procNum = procNum;
+        nextReq->dataAvail = 0;
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
@@ -157,6 +208,7 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
         nextReq->currentState = QUEUED;
         nextReq->addr = addr;
         nextReq->procNum = procNum;
+        nextReq->dataAvail = 0;
 
         enqBusRequest(nextReq, procNum);
     }
@@ -166,6 +218,11 @@ int tick()
 {
     memComp->si.tick();
 
+    if (self->dbgEnv.cadssDbgWatchedComp && !self->dbgEnv.cadssDbgNotifyState)
+    {
+        printInterconnState();
+    }
+
     if (countDown > 0)
     {
         assert(pendingRequest != NULL);
@@ -174,7 +231,7 @@ int tick()
         // If the count-down has elapsed (or there hasn't been a
         // cache-to-cache transfer, the memory will respond with
         // the data.
-        if (memComp->dataAvail(pendingRequest->addr, pendingRequest->procNum))
+        if (pendingRequest->dataAvail)
         {
             pendingRequest->currentState = TRANSFERING_MEMORY;
             countDown = 0;
@@ -185,8 +242,9 @@ int tick()
             if (pendingRequest->currentState == WAITING_CACHE)
             {
                 // Make a request to memory.
-                countDown = memComp->busReq(pendingRequest->addr,
-                                            pendingRequest->procNum);
+                countDown
+                    = memComp->busReq(pendingRequest->addr,
+                                      pendingRequest->procNum, memReqCallback);
 
                 pendingRequest->currentState = WAITING_MEMORY;
 
@@ -212,6 +270,7 @@ int tick()
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
 
+                interconnNotifyState();
                 free(pendingRequest);
                 pendingRequest = NULL;
             }
@@ -224,6 +283,7 @@ int tick()
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
 
+                interconnNotifyState();
                 free(pendingRequest);
                 pendingRequest = NULL;
             }
@@ -247,6 +307,54 @@ int tick()
     }
 
     return 0;
+}
+
+void printInterconnState(void)
+{
+    if (!pendingRequest)
+    {
+        return;
+    }
+
+    printf("--- Interconnect Debug State (Processors: %d) ---\n"
+           "       Current Request: \n"
+           "             Processor: %d\n"
+           "               Address: 0x%016lx\n"
+           "                  Type: %s\n"
+           "                 State: %s\n"
+           "         Shared / Data: %s\n"
+           "                  Next: %p\n"
+           "             Countdown: %d\n"
+           "    Request Queue Size: \n",
+           processorCount, pendingRequest->procNum, pendingRequest->addr,
+           req_type_map[pendingRequest->brt],
+           req_state_map[pendingRequest->currentState],
+           pendingRequest->shared ? "Shared" : "Data", pendingRequest->next,
+           countDown);
+
+    for (int p = 0; p < processorCount; p++)
+    {
+        printf("       - Processor[%02d]: %d\n", p, busRequestQueueSize(p));
+    }
+}
+
+void interconnNotifyState(void)
+{
+    if (!pendingRequest)
+        return;
+
+    if (self->dbgEnv.cadssDbgExternBreak)
+    {
+        printInterconnState();
+        raise(SIGTRAP);
+        return;
+    }
+
+    if (self->dbgEnv.cadssDbgWatchedComp && self->dbgEnv.cadssDbgNotifyState)
+    {
+        self->dbgEnv.cadssDbgNotifyState = 0;
+        printInterconnState();
+    }
 }
 
 // Return a non-zero value if the current request
