@@ -9,8 +9,9 @@
 // TRACE H - Public interface to trace file reader
 //
 
-enum op_type {
-    NONE,  
+enum op_type
+{
+    NONE,
     MEM_LOAD,
     MEM_STORE,
     BRANCH,
@@ -22,7 +23,7 @@ enum op_type {
 typedef int proc_id;
 
 typedef struct _trace_op {
-    enum op_type op;  
+    enum op_type op;
     int dest_reg;
     int src_reg[2];
     uint64_t pcAddress;
