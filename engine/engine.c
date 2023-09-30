@@ -17,18 +17,23 @@ int processorCount = 1;
 void printHelp(char* prog)
 {
     printf("%s \n", prog);
-    printf("  -h        \t Help message\n");
-    printf("  -v        \t Verbose\n");
-    printf("  -n <num>  \t Number of processors to simulate\n");
-    printf("  -c <file> \t Cache simulator\n");
-    printf("  -p <file> \t Pipeline simulator\n");
-    printf("  -o <file> \t Coherence simulator\n");
-    printf("  -i <file> \t Interconnection simulator\n");
-    printf("  -b <file> \t Branch simulator\n");
-    printf("  -m <file> \t Memory simulator\n");
-    printf("  -t <file> \t Trace file / directory\n");
-    printf("  -s <file> \t Setting / configuration file\n");
-    printf("  -d        \t Start in debug REPL mode\n");
+    printf("  -h          \t Help message\n");
+    printf("  -v          \t Verbose\n");
+    printf("  -n <num>    \t Number of processors to simulate\n");
+    printf("  -c <file>   \t Cache simulator\n");
+    printf("  -p <file>   \t Pipeline simulator\n");
+    printf("  -o <file>   \t Coherence simulator\n");
+    printf("  -i <file>   \t Interconnection simulator\n");
+    printf("  -b <file>   \t Branch simulator\n");
+    printf("  -m <file>   \t Memory simulator\n");
+    printf("  -t <file>   \t Trace file / directory\n");
+    printf("  -s <file>   \t Setting / configuration file\n");
+    printf("  -d [<tick>] \t Enable debugging\n"
+           "              \t  - drops into a debug REPL\n"
+           "              \t  - if <tick> specified, waits for <tick>\n"
+           "              \t    cycles to elapse before prompy"
+           "              \t  - if run with external debugger, state\n"
+           "              \t    changes deliver SIGTRAP\n");
 }
 
 //
@@ -37,11 +42,11 @@ void printHelp(char* prog)
 //
 struct sim* loadSim(char* name, char* type)
 {
-    char *baseName = NULL;
+    char* baseName = NULL;
     char fullName[SIM_NAME_LIMIT] = {0};
     ssize_t len;
 
-    // TODO 
+    // TODO
     //  - Support for alternate naming schemes
     //  - if debug == 1, try loading a -debug.so
     baseName = basename(name);
@@ -101,14 +106,27 @@ struct sim* loadSim(char* name, char* type)
 }
 
 // Handle debug REPL prompts.
-static int debugRepl(uint64_t tickCount)
+static int debugRepl(int64_t tickCount)
 {
     char line[MAX_DBG_LINE_BUF_SIZE + 1] = {0};
     enum dbgCmd cmd;
     int showPrompt = 1;
 
-    // Nothing to do.
+    // Disable cadss debug REPL if the engine
+    // is invoked with an external debugger.
+    if (CADSS_DBG_EXT)
+        return 0;
+
+    // If "-d <tick>", then turn on debugging after that tick.
+    if (CADSS_DBG_TICK >= 0 && tickCount >= CADSS_DBG_TICK)
+    {
+        CADSS_DBG_ON = 1;
+    }
+
     if (!CADSS_DBG_ON)
+        return 0;
+
+    if (CADSS_DBG_NOTIF)
         return 0;
 
     // Step through.
@@ -124,7 +142,7 @@ static int debugRepl(uint64_t tickCount)
 
         // Display prompt, get input.
         if (tickCount)
-            printf("Tick: %lu\n", tickCount);
+            printf("Tick: %ld\n", tickCount);
 
         printf("> ");
         if (fgets(line, MAX_DBG_LINE_BUF_SIZE, stdin) != line)
@@ -140,6 +158,27 @@ static int debugRepl(uint64_t tickCount)
     }
 
     return 0;
+}
+
+static void debugInitEnv(debug_env_vars* compEnv)
+{
+    compEnv->cadssDbgNotifyState = 0;
+    compEnv->cadssDbgWatchedComp = 0;
+    compEnv->cadssDbgExternBreak = CADSS_DBG_EXT;
+}
+
+static void debugWatchComponent(debug_env_vars* compEnv, uint8_t mask)
+{
+    compEnv->cadssDbgWatchedComp = !!(CADSS_DBG_WLIST_STATE & mask);
+
+    if (compEnv->cadssDbgWatchedComp)
+        compEnv->cadssDbgNotifyState = CADSS_DBG_NOTIF;
+}
+
+static void debugCheckNotif(debug_env_vars* compEnv)
+{
+    if (compEnv->cadssDbgWatchedComp)
+        CADSS_DBG_NOTIF &= compEnv->cadssDbgNotifyState;
 }
 
 int main(int argc, char** argv)
@@ -161,12 +200,17 @@ int main(int argc, char** argv)
     char* memName = NULL;
 
     // TODO - switch to getopt_long that accepts -- arguments
-    while ((opt = getopt(argc, argv, "hdvc:p:o:n:i:b:t:s:m:")) != -1)
+    while ((opt = getopt(argc, argv, ":hvc:p:o:n:i:b:t:s:m:d:")) != -1)
     {
         switch (opt)
         {
             case 'd':
-                CADSS_DBG_ON = 1;
+                CADSS_DBG_TICK = atoi(optarg);
+                if (CADSS_DBG_TICK >= 0)
+                    CADSS_DBG_ON = 0;
+                else
+                    CADSS_DBG_TICK = -1;
+
                 break;
             case 'h':
                 printHelp(argv[0]);
@@ -198,8 +242,17 @@ int main(int argc, char** argv)
             case 'm':
                 memName = optarg;
                 break;
+            case ':':
+                if (optopt == 'd')
+                {
+                    CADSS_DBG_ON = 1;
+                }
+                break;
         }
     }
+
+    if (isProcTracedExt() && CADSS_DBG_ON)
+        CADSS_DBG_EXT = 1;
 
     trace = loadSim("trace", "trace");
     trace_sim_args tsa;
@@ -375,7 +428,14 @@ int main(int argc, char** argv)
     // Main sim loop
     int progress = 0;
     int dbgHalt;
-    uint64_t dbgTickCount = 0;
+    int64_t dbgTickCount = 0;
+
+    debugInitEnv(&(proc_sim->dbgEnv));
+    debugInitEnv(&(branch_sim->dbgEnv));
+    debugInitEnv(&(cache_sim->dbgEnv));
+    debugInitEnv(&(coher_sim->dbgEnv));
+    debugInitEnv(&(inter_sim->dbgEnv));
+    debugInitEnv(&(mem_sim->dbgEnv));
 
     do
     {
@@ -383,23 +443,26 @@ int main(int argc, char** argv)
         if (dbgHalt)
             break;
 
-        // Mark components to watch.
-        proc_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_PROC);
-        branch_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_BRANCH);
-        cache_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_CACHE);
-        coher_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_COHER);
-        inter_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_INTER);
-        mem_sim->si.cadssDbgWatchedComp
-            = !!(CADSS_DBG_WLIST_STATE & CADSS_DBG_WATCH_MEM);
+        // Mark components to watch and notify state changes.
+        debugWatchComponent(&(proc_sim->dbgEnv), CADSS_DBG_WATCH_PROC);
+        debugWatchComponent(&(branch_sim->dbgEnv), CADSS_DBG_WATCH_BRANCH);
+        debugWatchComponent(&(cache_sim->dbgEnv), CADSS_DBG_WATCH_CACHE);
+        debugWatchComponent(&(coher_sim->dbgEnv), CADSS_DBG_WATCH_COHER);
+        debugWatchComponent(&(inter_sim->dbgEnv), CADSS_DBG_WATCH_INTER);
+        debugWatchComponent(&(mem_sim->dbgEnv), CADSS_DBG_WATCH_MEM);
 
         // Processor requests trace ops as needed.
         progress = psim->tick();
         dbgTickCount++;
+
+        // Check if any of the watched components
+        // requested to be notified of state change.
+        debugCheckNotif(&(proc_sim->dbgEnv));
+        debugCheckNotif(&(branch_sim->dbgEnv));
+        debugCheckNotif(&(cache_sim->dbgEnv));
+        debugCheckNotif(&(coher_sim->dbgEnv));
+        debugCheckNotif(&(inter_sim->dbgEnv));
+        debugCheckNotif(&(mem_sim->dbgEnv));
     } while (progress);
 
     psim->finish(STDOUT_FILENO);

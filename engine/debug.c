@@ -1,12 +1,19 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <assert.h>
 
 #include "engine.h"
 
-uint8_t CADSS_DBG_WLIST_STATE = 0;
 int CADSS_DBG_ON = 0;
+int64_t CADSS_DBG_TICK = -1;
+int CADSS_DBG_NOTIF = 0;
+uint8_t CADSS_DBG_WLIST_STATE = 0;
 int CADSS_DBG_STEP_TICKS = 0;
+int CADSS_DBG_EXT = 0;
 
 static void updateDebugWlist(const char* args, uint8_t watch)
 {
@@ -56,6 +63,7 @@ static void printDebugHelp()
            "     n [arg]  Advance simulation by by \"arg\" ticks.\n"
            "              arg: T, where T > 0\n"
            "              If unspecified, advances by 1 tick.\n\n"
+           "     c        Continue execution until state change.\n\n"
            "     e        Exit from debug REPL.\n\n"
            "     q        Quit (exit and halt) the simulation.\n\n"
            "     l        List watched components.\n\n"
@@ -83,6 +91,8 @@ enum dbgCmd parseDebugReplCmd(const char* cmdStr)
             return CMD_IGN;
         case 'n':
             return CMD_NXT;
+        case 'c':
+            return CMD_CON;
         case 'e':
             return CMD_EXT;
         case 'q':
@@ -98,6 +108,9 @@ enum dbgCmd parseDebugReplCmd(const char* cmdStr)
 
 int handleDbgReplCmd(enum dbgCmd cmd, const char* cmdStr)
 {
+    // Prompt (back) on, swich off continue.
+    CADSS_DBG_NOTIF = 0;
+
     if (cmdStr[0] == '\0')
         return 1;
 
@@ -114,6 +127,10 @@ int handleDbgReplCmd(enum dbgCmd cmd, const char* cmdStr)
             CADSS_DBG_ON = 0;
             CADSS_DBG_WLIST_STATE = 0;
 
+            return 0;
+
+        case CMD_CON:
+            CADSS_DBG_NOTIF = 1;
             return 0;
 
         case CMD_WAT:
@@ -143,4 +160,39 @@ int handleDbgReplCmd(enum dbgCmd cmd, const char* cmdStr)
     }
 
     return 1;
+}
+
+// Check if the simulator was started with an
+// external debugger (like "gdb", "lldb", etc.).
+int isProcTracedExt()
+{
+    pid_t chldPID, prntPID;
+    int status;
+
+    chldPID = fork();
+    assert(chldPID >= 0);
+
+    if (chldPID == 0)
+    {
+        prntPID = getppid();
+
+        // From the child, try to attach to the parent and
+        // trace it. If it fails, the parent is being traced.
+        // If it doesn't then wait for the parent to stop (it
+        // stops because the child attached to it), make it
+        // set to to continye and detach.
+        if (ptrace(PTRACE_ATTACH, prntPID, NULL, NULL) == -1)
+            exit(1);
+
+        waitpid(prntPID, NULL, 0);
+        ptrace(PTRACE_CONT, NULL, NULL);
+        ptrace(PTRACE_DETACH, getppid(), NULL, NULL);
+
+        exit(0);
+    }
+
+    // Parent (patiently) wait for the child.
+    waitpid(chldPID, &status, 0);
+
+    return WEXITSTATUS(status);
 }
