@@ -3,23 +3,17 @@
 #include <memory.h>
 #include <interconnect.h>
 
-// Describes a DRAM request.
-typedef struct _memReq {
-    int procNum;
-    uint64_t addr;
-    int squelch;
-} memReq;
+#include "memory_internal.h"
 
 void registerInterconnect(interconn* interconnect);
-int busReq(uint64_t addr, int procNum);
-int dataAvail(uint64_t addr, int procNum);
+int busReq(uint64_t addr, int procNum, void (*callback)(int, uint64_t));
 
 memory* self = NULL;
 memReq* pendingRequest = NULL;
 interconn* interComp;
 int countDown = 0;
 
-// This is the same as "BUS_TIME" (for now).
+// This is the same as "BUS_TIME".
 const int DRAM_FETCH_TICKS = 90;
 
 memory* init(memory_sim_args* args)
@@ -31,7 +25,6 @@ memory* init(memory_sim_args* args)
 
     self->registerInterconnect = registerInterconnect;
     self->busReq = busReq;
-    self->dataAvail = dataAvail;
     self->si.tick = tick;
     self->si.finish = finish;
     self->si.destroy = destroy;
@@ -48,7 +41,7 @@ void registerInterconnect(interconn* interconnect)
     interComp = interconnect;
 }
 
-int busReq(uint64_t addr, int procNum)
+int busReq(uint64_t addr, int procNum, void (*callback)(int, uint64_t))
 {
     assert(pendingRequest == NULL);
 
@@ -56,40 +49,11 @@ int busReq(uint64_t addr, int procNum)
     pendingRequest->addr = addr;
     pendingRequest->procNum = procNum;
     pendingRequest->squelch = 0;
+    pendingRequest->callback = callback;
 
     countDown = DRAM_FETCH_TICKS;
 
     return countDown;
-}
-
-// Returns a non-zero value if the data
-// is available for a pending request.
-int dataAvail(uint64_t addr, int procNum)
-{
-    int avail = 0, clear = 0;
-
-    if (!pendingRequest)
-        return avail;
-
-    // No data to respond.
-    if (pendingRequest->squelch)
-    {
-        clear = 1;
-        goto done;
-    }
-
-    // If count-down has elapsed; respond with data.
-    if (addr == pendingRequest->addr && procNum == pendingRequest->procNum)
-        clear = avail = (countDown <= 0);
-
-done:
-    if (clear)
-    {
-        free(pendingRequest);
-        pendingRequest = NULL;
-    }
-
-    return avail;
 }
 
 int tick()
@@ -113,6 +77,18 @@ int tick()
     }
 
 done:
+    if (pendingRequest && countDown == 0)
+    {
+        if (!pendingRequest->squelch)
+        {
+            pendingRequest->callback(pendingRequest->procNum,
+                                     pendingRequest->addr);
+        }
+
+        free(pendingRequest);
+        pendingRequest = NULL;
+    }
+
     return countDown;
 }
 
