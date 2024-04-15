@@ -271,7 +271,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "Failed to open setting file - %s\n", settingFile);
         return 0;
     }
-
+    //I think this part just reads in the configuration options for each of the componenets
+    //what is this stuff about the interconnect - what does it do?
     if (interName == NULL)
     {
         isim = loadSim("interconnect", "interconnect");

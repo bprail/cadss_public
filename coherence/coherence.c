@@ -59,7 +59,7 @@ coher* init(coher_sim_args* csa)
     self->invlReq = invlReq;
     self->registerCacheInterface = registerCacheInterface;
 
-    inter_sim->registerCoher(self);
+    inter_sim->registerCoher(self); // this should probably allow the interconnect to see the stree 
 
     return self;
 }
@@ -69,6 +69,8 @@ void registerCacheInterface(void (*callback)(int, int, int64_t))
     cacheCallback = callback;
 }
 
+
+//looks up the tree to get the state of an address in another processor
 coherence_states getState(uint64_t addr, int processorNum)
 {
     coherence_states lookState
@@ -146,6 +148,8 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
 
     return 0;
 }
+
+// This is the function that other caches call - permission requests for that address by that processor
 
 uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
 {
