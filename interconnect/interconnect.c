@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include <memory.h>
-#include <interconnect.h>
+#include <interconnect_internal.h>
 
 typedef enum _bus_req_state
 {
@@ -114,7 +114,7 @@ static int busRequestQueueSize(int procNum)
     return count;
 }
 
-interconn* init(inter_sim_args* isa)
+ interconn* init(inter_sim_args* isa)
 {
     int op;
 
@@ -369,13 +369,12 @@ int busReqCacheTransfer(uint64_t addr, int procNum)
     return 0;
 }
 
-int finish(int outFd)
+ int finish(int outFd)
 {
-    memComp->si.finish(outFd);
-    return 0;
+    finish_cpp(outFd, memComp);
 }
 
-int destroy(void)
+ int destroy(void)
 {
     // TODO
     memComp->si.destroy();
