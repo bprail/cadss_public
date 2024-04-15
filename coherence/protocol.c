@@ -1,46 +1,31 @@
 #include "coher_internal.h"
 
-// void sendBusRd(uint64_t addr, int procNum)
-// {
-//     inter_sim->busReq(BUSRD, addr, procNum);
-// }
+// Cache -> Directory
+void sendRead(uint64_t addr, int procNum)
+{
+    inter_sim->busReq(READSHARED, addr, procNum);
+}
 
-// void sendBusWr(uint64_t addr, int procNum)
-// {
-//     inter_sim->busReq(BUSWR, addr, procNum);
-// }
+void sendReadEx(uint64_t addr, int procNum)
+{
+    inter_sim->busReq(READEX, addr, procNum);
+}
 
-// void sendData(uint64_t addr, int procNum)
-// {
-//     inter_sim->busReq(DATA, addr, procNum);
-// }
+// Directory -> cache
+void sendSnoopInvalidate(uint64_t addr, int procNum) {
+    inter_sim->busReq(INVAL, addr, procNum);
+}
+
+void sendData(uint64_t addr, int procNum)
+{
+    inter_sim->busReq(DATA, addr, procNum);
+}
 
 // void indicateShared(uint64_t addr, int procNum)
 // {
 //     inter_sim->busReq(SHARED, addr, procNum);
 // }
 
-// Directory -> cache
-void sendSnoopDowngrade(uint64_t addr, int procNum) {
-    inter_sim->busReq(SNOOPDNGRADE, addr, procNum);
-}
-
-void sendSnoopInvalidate(uint64_t addr, int procNum) {
-    inter_sim->busReq(SNOOPINV, addr, procNum);
-}
-
-void sendGrantExcl(uint64_t addr, int procNum) {
-    inter_sim->busReq(GRANTEXCL, addr, procNum);
-}
-
-// Cache -> directory
-void sendRead(uint64_t addr, int procNum) {
-    inter_sim->busReq(READSHARED, addr, procNum);
-}
-
-void sendReadExcl(uint64_t addr, int procNum) {
-    inter_sim->busReq(READEX, addr, procNum);
-}
 
 // Called when cache is hitting us, asking if it has permission
 // In lecture diagrams, corresponds to Pr... messages
@@ -54,14 +39,14 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
             *permAvail = 1;
             return MODIFIED;
         // Access persists if read, otherwise upgrade
-        case SHARED:
+        case SHARED_STATE:
             if (is_read) {
                 *permAvail = 1;
-                return SHARED;
+                return SHARED_STATE;
             } else {
                 // I think there's no need to stall, since we have data
                 *permAvail = 0;
-                sendReadExcl(addr, procNum);
+                sendReadEx(addr, procNum);
                 return SHARED_MODIFIED;
             }
         // Get the value we need
@@ -69,9 +54,9 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
             *permAvail = 0;
             if (is_read) {
                 sendRead(addr, procNum);
-                return SHARED;
+                return SHARED_STATE;
             } else {
-                sendReadExcl(addr, procNum);
+                sendReadEx(addr, procNum);
                 return INVALID_MODIFIED;
             }
         // Stall cases
@@ -95,7 +80,7 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
 }
 
 coherence_states
-snoopMSI(dir_req_type reqType, cache_action* ca, coherence_states currentState,
+snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
         uint64_t addr, int procNum) {
     *ca = NO_ACTION;
     switch (currentState)
@@ -103,30 +88,30 @@ snoopMSI(dir_req_type reqType, cache_action* ca, coherence_states currentState,
         // Main states
         case MODIFIED:
             // indicateShared(addr, procNum); // Needed for E state
-            if (reqType == SNOOPINV) {
+            if (reqType == INVAL) {
                 sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;
-            } else if (reqType == SNOOPDNGRADE) {
+            } else if (reqType == READSHARED) {
                 sendData(addr, procNum); 
-                return SHARED;
+                return SHARED_STATE;
             }
             return MODIFIED;
 
-        case SHARED:
-            if (reqType == SNOOPINV) {
+        case SHARED_STATE:
+            if (reqType == INVAL) {
                 sendData(addr, procNum); // ?? Not sure how invalidator gets data
                 *ca = INVALIDATE;
                 return INVALID;
             } 
-            return SHARED;
+            return SHARED_STATE;
 
         case INVALID:
             return INVALID;
 
         // Stall states; hopefully we receive an update
         case SHARED_MODIFIED:
-            if (reqType == GRANTEXCL)
+            if (reqType == DATA || reqType == SHARED)
             {
                 *ca = DATA_RECV;
                 return MODIFIED;
@@ -134,7 +119,7 @@ snoopMSI(dir_req_type reqType, cache_action* ca, coherence_states currentState,
             return SHARED_MODIFIED;
 
         case INVALID_MODIFIED:
-            if (reqType == GRANTEXCL)
+            if (reqType == DATA || reqType == SHARED)
             {
                 *ca = DATA_RECV;
                 return MODIFIED;
@@ -158,7 +143,7 @@ cacheMI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
     {
         case INVALID:
             *permAvail = 0;
-            sendBusWr(addr, procNum);
+            sendReadEx(addr, procNum);
             return INVALID_MODIFIED;
         case MODIFIED:
             *permAvail = 1;
@@ -197,7 +182,6 @@ snoopMI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
                 *ca = DATA_RECV;
                 return MODIFIED;
             }
-
             return INVALID_MODIFIED;
         default:
             fprintf(stderr, "State %d not supported, found on %lx\n",

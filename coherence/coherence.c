@@ -15,7 +15,7 @@ coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
 
-uint8_t busReq(dir_req_type reqType, uint64_t addr, int processorNum);
+uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum);
 uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum);
 uint8_t invlReq(uint64_t addr, int processorNum);
 void registerCacheInterface(void (*callback)(int, int, int64_t));
@@ -84,7 +84,7 @@ void setState(uint64_t addr, int processorNum, coherence_states nextState)
     tree_insert(coherStates[processorNum], addr, (void*)nextState);
 }
 
-uint8_t busReq(dir_req_type reqType, uint64_t addr, int processorNum)
+uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
 {
     if (processorNum < 0 || processorNum >= processorCount)
     {

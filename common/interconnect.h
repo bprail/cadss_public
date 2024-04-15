@@ -7,24 +7,13 @@ struct _memory;
 typedef enum _bus_req_type
 {
     NO_REQ,
-    BUSRD,
-    BUSWR,
+    READSHARED,
+    READEX,
     DATA,
+    INVAL,
     SHARED,
     MEMORY
 } bus_req_type;
-
-typedef enum _dir_req_type
-{
-    NO_REQ,
-    READSHARED,
-    READEX,
-    SNOOPINV,
-    SNOOPDNGRADE,
-    GRANTEXCL,
-    MEMORY_WB,
-    MEMORY_RD
-} dir_req_type;
 
 #include "coherence.h"
 #include "memory.h"
@@ -38,7 +27,7 @@ typedef struct _inter_sim_args {
 
 typedef struct _interconn {
     sim_interface si;
-    void (*busReq)(dir_req_type drt, uint64_t addr, int procNum);
+    void (*busReq)(bus_req_type drt, uint64_t addr, int procNum);
     void (*registerCoher)(struct _coher* coherComp);
     int (*busReqCacheTransfer)(uint64_t addr, int procNum);
     debug_env_vars dbgEnv;
