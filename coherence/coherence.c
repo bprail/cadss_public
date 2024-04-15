@@ -10,7 +10,7 @@ typedef void (*cacheCallbackFunc)(int, int, int64_t);
 tree_t** coherStates = NULL;
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
-coherence_scheme cs = MI;
+coherence_scheme cs = MSI;
 coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
@@ -169,7 +169,7 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
             nextState = cacheMSI(is_read, &permAvail, currentState, addr,
                                 processorNum);
             break;
-            
+
         case MESI:
             // TODO: Implement this.
             break;
