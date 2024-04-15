@@ -28,7 +28,7 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
 
 cache* init(cache_sim_args* csa)
 {
-    int op;
+    int op; //means configuration option, not the operation/instruction
 
     // TODO - get argument list from assignment
     while ((op = getopt(csa->arg_count, csa->arg_list, "E:s:b:i:R:")) != -1)
@@ -94,7 +94,7 @@ void coherCallback(int type, int processorNum, int64_t addr)
     assert(pendReq != NULL);
     assert(processorNum < processorCount);
 
-    // "simpleCache" does not support invalidations.
+    // "simpleCache" does not support invalidations. ??
     if (type != DATA_RECV)
         return;
 
@@ -118,7 +118,7 @@ void coherCallback(int type, int processorNum, int64_t addr)
                 prevReq->next = pr->next;
 
                 pr->next = readyReq;
-                readyReq = pr;
+                readyReq = pr; //It's an add to head operation here
                 break;
             }
             pr = pr->next;
@@ -146,8 +146,8 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
 
     // As a simplifying assumption, requests do not cross cache lines
     uint64_t addr = (op->memAddress & ~(blockSize - 1));
-    uint8_t perm
-        = coherComp->permReq((op->op == MEM_LOAD), addr, processorNum);
+    uint8_t perm 
+        = coherComp->permReq((op->op == MEM_LOAD), addr, processorNum); //perm means 
 
     pendingRequest* pr = malloc(sizeof(pendingRequest));
     pr->tag = tag;
@@ -158,7 +158,7 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
     if (perm == 1)
     {
         // create callback for next tick
-        pr->next = readyReq;
+        pr->next = readyReq; //basically always NULL on the first processor because tick is called before this
         readyReq = pr;
     }
     else
@@ -168,7 +168,7 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
         pendReq = pr;
     }
 }
-
+ 
 int tick()
 {
     coherComp->si.tick();

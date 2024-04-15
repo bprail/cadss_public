@@ -127,7 +127,7 @@ int tick(void)
     }
 
     int progress = 0;
-    for (int i = 0; i < processorCount; i++)
+    for (int i = 0; i < processorCount; i++) //go over all the processors and update status of each of its units. Then get the next op
     {
         if (pendingMem[i] == 1)
         {
@@ -143,6 +143,8 @@ int tick(void)
             progress = 1;
             continue;
         }
+
+        // We only get here if we are not stalled on memory or branches
 
         // TODO: get and manage ops for each processor core
         nextOp = tr->getNextOp(i);
@@ -163,7 +165,7 @@ int tick(void)
 
             case BRANCH:
                 pendingBranch[i]
-                    = (bs->branchRequest(nextOp, i) == nextOp->nextPCAddress)
+                    = (bs->branchRequest(nextOp, i) == nextOp->nextPCAddress) //this never results in stalls because BP is perfect
                           ? 0
                           : 1;
                 break;

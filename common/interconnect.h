@@ -4,7 +4,7 @@
 struct _coher;
 struct _memory;
 
-typedef enum _bus_req_type
+typedef enum _dir_req_type
 {
     NO_REQ,
     READSHARED,
