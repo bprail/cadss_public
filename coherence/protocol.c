@@ -1,24 +1,56 @@
 #include "coher_internal.h"
 
-void sendBusRd(uint64_t addr, int procNum)
+// void sendBusRd(uint64_t addr, int procNum)
+// {
+//     inter_sim->busReq(BUSRD, addr, procNum);
+// }
+
+// void sendBusWr(uint64_t addr, int procNum)
+// {
+//     inter_sim->busReq(BUSWR, addr, procNum);
+// }
+
+// Directory -> cache
+void sendSnoopDowngrade()
 {
-    inter_sim->busReq(BUSRD, addr, procNum);
+    inter_sim->busReq(SNOOPDNGRADE, addr, procNum);
 }
 
-void sendBusWr(uint64_t addr, int procNum)
+void sendSnoopInvalidate(uint64_t addr, int procNum)
 {
-    inter_sim->busReq(BUSWR, addr, procNum);
+    // Need to add more stuff to busReq 
+    inter_sim->busReq(SNOOPINV, addr, procNum);
 }
 
-void sendData(uint64_t addr, int procNum)
+// Cache -> directory
+void readData()
 {
-    inter_sim->busReq(DATA, addr, procNum);
+    // Use directory
+    inter_sim->busReq(READSHARED, addr, procNum);
 }
 
-void indicateShared(uint64_t addr, int procNum)
+void readExclusive()
 {
-    inter_sim->busReq(SHARED, addr, procNum);
+    inter_sim->busReq(READEX, addr, procNum);
 }
+
+// void sendData(uint64_t addr, int procNum)
+// {
+//     inter_sim->busReq(DATA, addr, procNum);
+// }
+
+// void indicateShared(uint64_t addr, int procNum)
+// {
+//     inter_sim->busReq(SHARED, addr, procNum);
+// }
+
+coherence_states
+cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
+        uint64_t addr, int procNum)
+{
+
+}
+
 
 coherence_states
 cacheMI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
