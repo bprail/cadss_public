@@ -45,6 +45,7 @@ void sendReadExcl()
 // }
 
 // Called when cache is hitting us, asking if we have permission
+// In lecture diagrams, corresponds to Pr... messages
 coherence_states
 cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
         uint64_t addr, int procNum) {
@@ -103,27 +104,58 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
 }
 
 coherence_states
-snoopMSI() {
+snoopMSI(dir_req_type reqType, cache_action* ca, coherence_states currentState,
+        uint64_t addr, int procNum) {
     *ca = NO_ACTION;
     switch (currentState)
     {
+        // Main states
+        case MODIFIED:
+            sendData(addr, procNum); // This call was removed -fix
+            // indicateShared(addr, procNum); // Needed for E state
+            if (reqType == SNOOPINV) {
+                *ca = INVALIDATE;
+                return INVALID;
+            } else if (reqType == SNOOPDNGRADE) {
+                return SHARED;
+            }
+            return MODIFIED;
+        case SHARED:
+            if (reqType == SNOOPINV) {
+                sendData(); // ?? Not sure how invalidator gets data
+                *ca = INVALIDATE;
+                return INVALID;
+            } 
+            return SHARED;
         case INVALID:
             return INVALID;
-        case MODIFIED:
-            // This needs to change - it currently assumes it needs downgrade
 
-            sendData(addr, procNum);
-            // indicateShared(addr, procNum); // Needed for E state
-            *ca = INVALIDATE;
-            return INVALID;
+        // Stall states; hopefully we receive an update
+        case SHARED_MODIFIED:
+            if (reqType == DATA || reqType == SHARED)
+            {
+                *ca = DATA_RECV;
+                return MODIFIED;
+            }
+            return SHARED_MODIFIED;
+
+        case INVALID_SHARED:
+            if (reqType == DATA || reqType == SHARED)
+            {
+                *ca = DATA_RECV;
+                return SHARED;
+            }
+            return INVALID_SHARED;
+
         case INVALID_MODIFIED:
             if (reqType == DATA || reqType == SHARED)
             {
                 *ca = DATA_RECV;
                 return MODIFIED;
             }
-
             return INVALID_MODIFIED;
+        
+        
         default:
             fprintf(stderr, "State %d not supported, found on %lx\n",
                     currentState, addr);
