@@ -10,7 +10,7 @@ typedef void (*cacheCallbackFunc)(int, int, int64_t);
 tree_t** coherStates = NULL;
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
-coherence_scheme cs = MSI;
+coherence_scheme cs = MI;
 coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
@@ -98,12 +98,11 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     switch (cs)
     {
         case MI:
-            // Broken since reqType changed
             nextState
                 = snoopMI(reqType, &ca, currentState, addr, processorNum);
             break;
         case MSI:
-            // TODO: Implement this.
+            nextState = snoopMSI(reqType, &ca, currentState, addr, processorNum);
             break;
         case MESI:
             // TODO: Implement this.
