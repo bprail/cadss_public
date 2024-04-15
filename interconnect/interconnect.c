@@ -45,7 +45,7 @@ static const char* req_state_map[] = {
 
 static const char* req_type_map[]
     = {[NO_REQ] = "None", [READSHARED] = "BusRd",   [READEX] = "BusRdX",
-       [DATA] = "Data",   [INVAL] = "Invalidate",  [MEMORY] = "Memory"}; // [SHARED] = "Shared",
+       [DATA] = "Data",   [MEMORY] = "Memory"}; // [SHARED] = "Shared",
 
 const int CACHE_DELAY = 10;
 const int CACHE_TRANSFER = 10;

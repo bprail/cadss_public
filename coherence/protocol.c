@@ -12,10 +12,6 @@ void sendReadEx(uint64_t addr, int procNum)
 }
 
 // Directory -> cache
-void sendSnoopInvalidate(uint64_t addr, int procNum) {
-    inter_sim->busReq(INVAL, addr, procNum);
-}
-
 void sendData(uint64_t addr, int procNum)
 {
     inter_sim->busReq(DATA, addr, procNum);
@@ -29,6 +25,7 @@ void sendData(uint64_t addr, int procNum)
 
 // Called when cache is hitting us, asking if it has permission
 // In lecture diagrams, corresponds to Pr... messages
+// procnum is me
 coherence_states
 cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
         uint64_t addr, int procNum) {
@@ -88,7 +85,7 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
         // Main states
         case MODIFIED:
             // indicateShared(addr, procNum); // Needed for E state
-            if (reqType == INVAL) {
+            if (reqType == READEX) {
                 sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;
@@ -99,7 +96,7 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
             return MODIFIED;
 
         case SHARED_STATE:
-            if (reqType == INVAL) {
+            if (reqType == READEX) {
                 sendData(addr, procNum); // ?? Not sure how invalidator gets data
                 *ca = INVALIDATE;
                 return INVALID;

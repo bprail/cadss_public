@@ -10,7 +10,6 @@ typedef enum _bus_req_type
     READSHARED,
     READEX,
     DATA,
-    INVAL,
     SHARED,
     MEMORY
 } bus_req_type;
