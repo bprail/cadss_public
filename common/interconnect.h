@@ -4,15 +4,15 @@
 struct _coher;
 struct _memory;
 
-// typedef enum _bus_req_type
-// {
-//     NO_REQ,
-//     BUSRD,
-//     BUSWR,
-//     DATA,
-//     SHARED,
-//     MEMORY
-// } bus_req_type;
+typedef enum _bus_req_type
+{
+    NO_REQ,
+    BUSRD,
+    BUSWR,
+    DATA,
+    SHARED,
+    MEMORY
+} bus_req_type;
 
 typedef enum _dir_req_type
 {
@@ -21,6 +21,7 @@ typedef enum _dir_req_type
     READEX,
     SNOOPINV,
     SNOOPDNGRADE,
+    GRANTEXCL,
     MEMORY_WB,
     MEMORY_RD
 } dir_req_type;

@@ -98,6 +98,7 @@ uint8_t busReq(dir_req_type reqType, uint64_t addr, int processorNum)
     switch (cs)
     {
         case MI:
+            // Broken since reqType changed
             nextState
                 = snoopMI(reqType, &ca, currentState, addr, processorNum);
             break;
