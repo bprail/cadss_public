@@ -9,6 +9,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
 set(CMAKE_C_FLAGS "-O2 -ggdb -DDEBUG")
 
 add_subdirectory(branch)
+add_subdirectory(branchCPP)
 add_subdirectory(cache)
 add_subdirectory(engine)
 add_subdirectory(trace)
