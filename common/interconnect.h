@@ -4,7 +4,18 @@
 struct _coher;
 struct _memory;
 
-typedef enum _dir_req_type
+// typedef enum _dir_req_type
+// {
+//     NO_REQ,
+//     READSHARED,
+//     READEX,
+//     SNOOPINV,
+//     SNOOPDNGRADE,
+//     MEMORY_WB,
+//     MEMORY_RD
+// } dir_req_type; //used to be bus_req_type
+
+typedef enum _bus_req_type
 {
     NO_REQ,
     READSHARED,
