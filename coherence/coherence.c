@@ -130,6 +130,11 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
             assert(0);
     }
 
+    if (CADSS_VERBOSE) {
+        fprintf(stderr, "busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
+            processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
+    }
+
     // If the destination state is invalid, that is an implicit
     // state and does not need to be stored in the tree.
     if (nextState == INVALID)
@@ -143,7 +148,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     {
         setState(addr, processorNum, nextState);
     }
-
+  
     return 0;
 }
 
@@ -186,8 +191,12 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
             fprintf(stderr, "Undefined coherence scheme - %d\n", cs);
             break;
     }
-    fprintf(stderr, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
+
+    if (CADSS_VERBOSE) {
+        fprintf(stderr, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
             processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
+    }
+  
     setState(addr, processorNum, nextState);
     return permAvail;
 }
