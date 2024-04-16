@@ -10,7 +10,7 @@ typedef void (*cacheCallbackFunc)(int, int, int64_t);
 tree_t** coherStates = NULL;
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
-coherence_scheme cs = MI;
+coherence_scheme cs = MSI;
 coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
@@ -22,6 +22,7 @@ void registerCacheInterface(void (*callback)(int, int, int64_t));
 
 coher* init(coher_sim_args* csa)
 {
+    fprintf(stderr, "Using coherence scheme %i\n", cs);
     int op;
 
     while ((op = getopt(csa->arg_count, csa->arg_list, "s:")) != -1)
@@ -227,8 +228,11 @@ uint8_t invlReq(uint64_t addr, int processorNum)
             break;
 
         case MSI:
-            // TODO: Implement this.
+            // Questionable if READEX is the desired behavior here
+            // ISSUE: Cache action seems unused?
+            nextState = snoopMSI(READEX, &ca, currentState, addr, processorNum);
             break;
+
         case MESI:
             // TODO: Implement this.
             break;
