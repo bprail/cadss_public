@@ -186,7 +186,8 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
             fprintf(stderr, "Undefined coherence scheme - %d\n", cs);
             break;
     }
-
+    fprintf(stderr, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
+            processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
     setState(addr, processorNum, nextState);
     return permAvail;
 }

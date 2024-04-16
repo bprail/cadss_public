@@ -16,6 +16,15 @@ typedef enum _coherence_states
     INVALID_MODIFIED,
 } coherence_states;
 
+static const char* coherence_state_map[] = {
+    [UNDEF] = "UNDEFINED",
+    [MODIFIED] = "MODIFIED",
+    [SHARED_STATE] = "SHARED",
+    [INVALID] = "INVALID",
+    [SHARED_MODIFIED] = "SHARED_MODIFIED",
+    [INVALID_MODIFIED] = "INVALID_MODIFIED",
+};
+
 typedef enum _coherence_scheme
 {
     MI,
