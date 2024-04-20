@@ -58,14 +58,12 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
             }
         // Stall cases
         case SHARED_MODIFIED:
-            fprintf(stderr, "SM state on %lx, but request %d\n", addr,
-                    is_read);
-            *permAvail = 0;
+            // INACCURATE: fprintf(stderr, "SM state on %lx, but request %d\n", addr, is_read);
+            *permAvail = is_read;
             return SHARED_MODIFIED;
 
         case INVALID_MODIFIED:
-            fprintf(stderr, "IM state on %lx, but request %d\n", addr,
-                    is_read);
+            // fprintf(stderr, "IM state on %lx, but request %d\n", addr, is_read);
             *permAvail = 0;
             return INVALID_MODIFIED;
 
