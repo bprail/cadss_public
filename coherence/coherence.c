@@ -10,7 +10,7 @@ typedef void (*cacheCallbackFunc)(int, int, int64_t);
 tree_t** coherStates = NULL;
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
-coherence_scheme cs = MSI;
+coherence_scheme cs = 0;
 coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
@@ -22,7 +22,6 @@ void registerCacheInterface(void (*callback)(int, int, int64_t));
 
 coher* init(coher_sim_args* csa)
 {
-    fprintf(stderr, "Using coherence scheme %i\n", cs);
     int op;
 
     while ((op = getopt(csa->arg_count, csa->arg_list, "s:")) != -1)
@@ -34,6 +33,8 @@ coher* init(coher_sim_args* csa)
                 break;
         }
     }
+
+    fprintf(stderr, "Using coherence scheme %i\n", cs);
 
     if (processorCount < 1 || processorCount > 256)
     {
