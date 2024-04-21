@@ -6,13 +6,13 @@
 extern "C"
 {
 #endif
-interconn* init_cpp(inter_sim_args* isa);
+void init_cpp(inter_sim_args* isa, interconn* self_c);
 int tick_cpp();
 int finish_cpp(int outFd);
 int destroy_cpp(void);
 
 void registerCoher_cpp(coher* cc);
-void busReq_cpp(bus_req_type brt, long int addr, int procNum);
+void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum);
 int busReqCacheTransfer_cpp(uint64_t addr, int procNum);
 
 #ifdef __cplusplus  
@@ -21,11 +21,6 @@ int busReqCacheTransfer_cpp(uint64_t addr, int procNum);
 
 
 //C functions for C++ to call
-
-void registerCoher(coher* cc);
-void busReq(bus_req_type brt, uint64_t addr, int procNum);
-int busReqCacheTransfer(uint64_t addr, int procNum);
-
 
 typedef enum _bus_req_state
 {
@@ -47,12 +42,3 @@ typedef struct _bus_req {
     uint8_t dataAvail;
     struct _bus_req* next;
 } bus_req;
-
-bus_req* pendingRequest = NULL;
-bus_req** queuedRequests;
-interconn* self;
-coher* coherComp;
-memory* memComp;
-
-int CADSS_VERBOSE = 0;
-int processorCount = 1;

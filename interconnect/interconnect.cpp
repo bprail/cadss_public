@@ -97,7 +97,8 @@ static int busRequestQueueSize(int procNum)
     return count;
 }
 
-extern "C" interconn* init_cpp(inter_sim_args* isa)
+
+extern "C" void init_cpp(inter_sim_args* isa, interconn* self_c)
 {
     int op;
 
@@ -116,22 +117,60 @@ extern "C" interconn* init_cpp(inter_sim_args* isa)
         queuedRequests[i] = NULL;
     }
 
-    self = malloc(sizeof(interconn));
-    self->busReq = busReq;
-    self->registerCoher = registerCoher;
-    self->busReqCacheTransfer = busReqCacheTransfer;
-    self->si.tick = tick;
-    self->si.finish = finish;
-    self->si.destroy = destroy;
-
+    self = self_c;
     memComp = isa->memory;
     memComp->registerInterconnect(self);
 
-    return self;
 }
 
 int countDown = 0;
 int lastProc = 0; // for round robin arbitration
+
+extern "C" void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum){
+    if (pendingRequest == NULL)
+    {
+        assert(brt != SHARED);
+
+        bus_req* nextReq = calloc(1, sizeof(bus_req));
+        nextReq->brt = brt;
+        nextReq->currentState = WAITING_CACHE;
+        nextReq->addr = addr;
+        nextReq->procNum = procNum;
+        nextReq->dataAvail = 0;
+
+        pendingRequest = nextReq;
+        countDown = CACHE_DELAY;
+
+        return;
+    }
+    else if (brt == SHARED && pendingRequest->addr == addr)
+    {
+        pendingRequest->shared = 1;
+        return;
+    }
+    else if (brt == DATA && pendingRequest->addr == addr)
+    {
+        assert(pendingRequest->currentState == WAITING_MEMORY);
+        pendingRequest->data = 1;
+        pendingRequest->currentState = TRANSFERING_CACHE;
+        countDown = CACHE_TRANSFER;
+        return;
+    }
+    else
+    {
+        assert(brt != SHARED);
+
+        bus_req* nextReq = calloc(1, sizeof(bus_req));
+        nextReq->brt = brt;
+        nextReq->currentState = QUEUED;
+        nextReq->addr = addr;
+        nextReq->procNum = procNum;
+        nextReq->dataAvail = 0;
+
+        enqBusRequest(nextReq, procNum);
+    }
+}
+
 
 extern "C" void registerCoher_cpp(coher* cc)
 {
