@@ -19,26 +19,4 @@ int busReqCacheTransfer_cpp(uint64_t addr, int procNum);
 }
 #endif
 
-
 //C functions for C++ to call
-
-typedef enum _bus_req_state
-{
-    NONE,
-    QUEUED,
-    TRANSFERING_CACHE,
-    TRANSFERING_MEMORY,
-    WAITING_CACHE,
-    WAITING_MEMORY
-} bus_req_state;
-
-typedef struct _bus_req {
-    bus_req_type brt;
-    bus_req_state currentState;
-    uint64_t addr;
-    int procNum;
-    uint8_t shared;
-    uint8_t data;
-    uint8_t dataAvail;
-    struct _bus_req* next;
-} bus_req;
