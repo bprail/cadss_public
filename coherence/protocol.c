@@ -41,7 +41,6 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
                 *permAvail = 1;
                 return SHARED_STATE;
             } else {
-                // I think there's no need to stall, since we have data
                 *permAvail = 0;
                 sendReadEx(addr, procNum);
                 return SHARED_MODIFIED;

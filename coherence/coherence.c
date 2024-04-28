@@ -10,7 +10,7 @@ typedef void (*cacheCallbackFunc)(int, int, int64_t);
 tree_t** coherStates = NULL;
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
-coherence_scheme cs = 0;
+coherence_scheme cs = MI;
 coher* self = NULL;
 interconn* inter_sim = NULL;
 cacheCallbackFunc cacheCallback = NULL;
@@ -123,7 +123,9 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     switch (ca)
     {
         case DATA_RECV:
+            break;
         case INVALIDATE:
+            break;
         case NO_ACTION:
             cacheCallback(ca, processorNum, addr);
             break;
@@ -229,9 +231,13 @@ uint8_t invlReq(uint64_t addr, int processorNum)
             break;
 
         case MSI:
-            // Questionable if READEX is the desired behavior here
-            // ISSUE: Cache action seems unused?
-            nextState = snoopMSI(READEX, &ca, currentState, addr, processorNum);
+            // Unsure about this - copied for now
+            nextState = INVALID;
+            if (currentState != INVALID)
+            {
+                inter_sim->busReq(DATA, addr, processorNum);
+                flush = 1;
+            }
             break;
 
         case MESI:
