@@ -83,10 +83,12 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
         case MODIFIED:
             // indicateShared(addr, procNum); // Needed for E state
             if (reqType == READEX) {
+                fprintf(stderr, " - Am modified, snooped READEX\n");
                 sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;
             } else if (reqType == READSHARED) {
+                fprintf(stderr, " - Am modified, snooped READSHARED\n");
                 sendData(addr, procNum); 
                 return SHARED_STATE;
             }
@@ -94,7 +96,9 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
 
         case SHARED_STATE:
             if (reqType == READEX) {
-                sendData(addr, procNum); // ?? Not sure how invalidator gets data
+                fprintf(stderr, " - Am shared, snooped READEX\n");
+                fprintf(stderr, " - Sending data to proc %d\n", procNum);
+                sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;
             } 
