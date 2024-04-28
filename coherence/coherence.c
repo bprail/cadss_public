@@ -100,8 +100,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     switch (cs)
     {
         case MI:
-            nextState
-                = snoopMI(reqType, &ca, currentState, addr, processorNum);
+            nextState = snoopMI(reqType, &ca, currentState, addr, processorNum);
             break;
         case MSI:
             nextState = snoopMSI(reqType, &ca, currentState, addr, processorNum);
@@ -123,13 +122,10 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     switch (ca)
     {
         case DATA_RECV:
-            break;
         case INVALIDATE:
-            break;
         case NO_ACTION:
             cacheCallback(ca, processorNum, addr);
             break;
-
         default:
             assert(0);
     }
