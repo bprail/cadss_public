@@ -170,7 +170,7 @@ void memReqCallback(int procNum, uint64_t addr)
 
 void busReq(bus_req_type brt, uint64_t addr, int procNum)
 {
-    if (pendingRequest == NULL)
+    if (pendingRequest == NULL) // Dequeue a request and put in in current
     {
         assert(brt != SHARED);
 
@@ -192,7 +192,10 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
         return;
     }
     else if (brt == DATA && pendingRequest->addr == addr)
-    {
+    {   
+        if (pendingRequest->currentState != WAITING_MEMORY) {
+            fprintf(stderr, "Error: on busReq w/ proc %d, pendingRequest state is %d, expected %d\n", procNum, pendingRequest->currentState, WAITING_MEMORY);
+        }
         assert(pendingRequest->currentState == WAITING_MEMORY);
         pendingRequest->data = 1;
         pendingRequest->currentState = TRANSFERING_CACHE;
