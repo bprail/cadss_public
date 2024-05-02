@@ -96,8 +96,6 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
 
         case SHARED_STATE:
             if (reqType == READEX) {
-                fprintf(stderr, " - Am shared, snooped READEX\n");
-                fprintf(stderr, " - Sending data to proc %d\n", procNum);
                 sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;

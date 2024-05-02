@@ -170,8 +170,7 @@ void memReqCallback(int procNum, uint64_t addr)
 
 void busReq(bus_req_type brt, uint64_t addr, int procNum)
 {
-    if (pendingRequest == NULL) // Dequeue a request and put in in current
-    {
+    if (pendingRequest == NULL) { // Dequeue a request and put in in current
         assert(brt != SHARED);
 
         bus_req* nextReq = calloc(1, sizeof(bus_req));
@@ -184,26 +183,37 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
 
-        return;
-    }
-    else if (brt == SHARED && pendingRequest->addr == addr)
-    {
+    } else if (brt == SHARED && pendingRequest->addr == addr) {
         pendingRequest->shared = 1;
-        return;
-    }
-    else if (brt == DATA && pendingRequest->addr == addr)
-    {   
-        if (pendingRequest->currentState != WAITING_MEMORY) {
-            fprintf(stderr, "Error: on busReq w/ proc %d, pendingRequest state is %d, expected %d\n", procNum, pendingRequest->currentState, WAITING_MEMORY);
+
+    } else if (brt == DATA && pendingRequest->addr == addr) {   
+        assert(pendingRequest->currentState == WAITING_MEMORY ||
+               pendingRequest->currentState == TRANSFERING_CACHE ||
+               pendingRequest->currentState == TRANSFERING_MEMORY);
+
+        if (pendingRequest->currentState == WAITING_MEMORY) {
+            // This DATA busReq addresses the current pending request
+            pendingRequest->data = 1;
+            pendingRequest->currentState = TRANSFERING_CACHE;
+            countDown = CACHE_TRANSFER;
+            return;
+        } else if (CADSS_VERBOSE) {
+            // pendingRequest was already served by another proc's DATA busReq
+            // Occurs because all sharing procs snoop a READ(X), and send data.
+            // With correct directory/arbitration, this should not trigger
+            fprintf(stderr, "Duplicate DATA busReq received from proc , ignoring.");
         }
-        assert(pendingRequest->currentState == WAITING_MEMORY);
-        pendingRequest->data = 1;
-        pendingRequest->currentState = TRANSFERING_CACHE;
-        countDown = CACHE_TRANSFER;
-        return;
-    }
-    else
-    {
+
+        // Old code
+        // if (pendingRequest->currentState != WAITING_MEMORY) {
+        //     fprintf(stderr, "Error: on busReq w/ proc %d, pendingRequest state is %d, expected %d\n", procNum, pendingRequest->currentState, WAITING_MEMORY);
+        // }
+        // assert(pendingRequest->currentState == WAITING_MEMORY);
+        // pendingRequest->data = 1;
+        // pendingRequest->currentState = TRANSFERING_CACHE;
+        // countDown = CACHE_TRANSFER;
+        // return;
+    } else {
         assert(brt != SHARED);
 
         bus_req* nextReq = calloc(1, sizeof(bus_req));
@@ -234,6 +244,8 @@ int tick()
         // If the count-down has elapsed (or there hasn't been a
         // cache-to-cache transfer, the memory will respond with
         // the data.
+
+        // This only ever triggers in WAITING_MEMORY
         if (pendingRequest->dataAvail)
         {
             pendingRequest->currentState = TRANSFERING_MEMORY;
