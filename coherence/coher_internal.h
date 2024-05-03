@@ -12,8 +12,9 @@ typedef enum _coherence_states
     MODIFIED,
     SHARED_STATE,
     INVALID,
-    SHARED_MODIFIED, // Hybrid states, for awaiting M access
-    INVALID_MODIFIED,
+    SHARED_MODIFIED,  // Shared and awaiting excl. M access
+    INVALID_MODIFIED, // Inval and awaiting excl. M access
+    INVALID_SHARED    // Invalid and awaiting shared data
 } coherence_states;
 
 static const char* coherence_state_map[] = {
@@ -23,6 +24,7 @@ static const char* coherence_state_map[] = {
     [INVALID] = "INVALID",
     [SHARED_MODIFIED] = "SHARED_MODIFIED",
     [INVALID_MODIFIED] = "INVALID_MODIFIED",
+    [INVALID_SHARED] = "INVALID_SHARED"
 };
 
 typedef enum _coherence_scheme

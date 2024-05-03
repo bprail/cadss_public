@@ -50,21 +50,20 @@ cacheMSI(uint8_t is_read, uint8_t* permAvail, coherence_states currentState,
             *permAvail = 0;
             if (is_read) {
                 sendRead(addr, procNum);
-                return SHARED_STATE;
+                return INVALID_SHARED;
             } else {
                 sendReadEx(addr, procNum);
                 return INVALID_MODIFIED;
             }
         // Stall cases
         case SHARED_MODIFIED:
-            // INACCURATE: fprintf(stderr, "SM state on %lx, but request %d\n", addr, is_read);
             *permAvail = is_read;
             return SHARED_MODIFIED;
 
         case INVALID_MODIFIED:
-            // fprintf(stderr, "IM state on %lx, but request %d\n", addr, is_read);
+        case INVALID_SHARED:
             *permAvail = 0;
-            return INVALID_MODIFIED;
+            return currentState;
 
         default:
             fprintf(stderr, "State %d not supported, found on %lx\n",
@@ -109,23 +108,21 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
         case INVALID:
             return INVALID;
 
-        // Stall states; hopefully we receive an update
+        // Stall states; hopefully we've snooped the data we want
         case SHARED_MODIFIED:
-            // Data reception in this state is only a formality for race condition preventance
-            if (reqType == DATA || reqType == SHARED)
-            {
-                *ca = DATA_RECV;
-                return MODIFIED;
-            }
-            return SHARED_MODIFIED;
-
         case INVALID_MODIFIED:
-            if (reqType == DATA || reqType == SHARED)
-            {
+            if (reqType == DATA || reqType == SHARED) { 
                 *ca = DATA_RECV;
                 return MODIFIED;
             }
-            return INVALID_MODIFIED;
+            return currentState;
+
+        case INVALID_SHARED:
+            if (reqType == DATA || reqType == SHARED) {
+                *ca = DATA_RECV;
+                return SHARED_STATE;
+            }
+            return INVALID_SHARED;
         
         default:
             fprintf(stderr, "State %d not supported, found on %lx\n",
