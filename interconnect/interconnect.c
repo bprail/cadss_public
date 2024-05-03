@@ -33,6 +33,7 @@ memory* memComp;
 
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
+int PENDING_REQUEST_DEBUG = 0;
 
 static const char* req_state_map[] = {
     [NONE] = "None",
@@ -182,7 +183,8 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
-        fprintf(stderr, "new pendingRequest(proc=%d) from busReq\n", pendingRequest->procNum);
+        if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG)
+            fprintf(stderr, "new pendingRequest(proc=%d) from busReq\n", pendingRequest->procNum);
 
 
     } else if (brt == SHARED && pendingRequest->addr == addr) {
@@ -199,7 +201,7 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
             pendingRequest->currentState = TRANSFERING_CACHE;
             countDown = CACHE_TRANSFER;
             return;
-        } else if (CADSS_VERBOSE) {
+        } else if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
             // pendingRequest was already served by another proc's DATA busReq
             // Occurs because all sharing procs snoop a READ(X), and send data.
             // With correct directory/arbitration, this should not trigger
@@ -248,7 +250,7 @@ int tick()
         {
             if (pendingRequest->currentState == WAITING_CACHE)
             {
-                if (CADSS_VERBOSE) {
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
                     fprintf(stderr, "pendingRequest(proc=%d, type=%s) promoting to WAITING_MEM, sending snoops and memBusReq\n", pendingRequest->procNum, req_type_map[pendingRequest->brt]);
                 }
                 // Make a request to memory.
@@ -268,7 +270,7 @@ int tick()
                     }
                 }
 
-                if (CADSS_VERBOSE) {
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
                     fprintf(stderr, "Snoops sent\n");
                 }
 
@@ -281,7 +283,7 @@ int tick()
             {
                 bus_req_type brt
                     = (pendingRequest->shared == 1) ? SHARED : DATA;
-                if (CADSS_VERBOSE) {
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
                     fprintf(stderr, "pendingRequest(proc=%d) completed by mem\n", pendingRequest->procNum);
                 }
                 coherComp->busReq(brt, pendingRequest->addr,
@@ -296,7 +298,7 @@ int tick()
                 bus_req_type brt = pendingRequest->brt;
                 if (pendingRequest->shared == 1)
                     brt = SHARED;
-                if (CADSS_VERBOSE) {
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
                     fprintf(stderr, "pendingRequest(proc=%d) completed by cache\n", pendingRequest->procNum);
                 }
                 coherComp->busReq(brt, pendingRequest->addr,
@@ -323,8 +325,7 @@ int tick()
                 break;
             }
         }
-        // fprintf(stderr, "hi");
-        if(pendingRequest != NULL)
+        if(CADSS_VERBOSE && PENDING_REQUEST_DEBUG && pendingRequest != NULL)
             fprintf(stderr, "new pendingRequest(proc=%d) deq'd\n", pendingRequest->procNum);
     }
 
