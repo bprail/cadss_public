@@ -94,9 +94,13 @@ void coherCallback(int type, int processorNum, int64_t addr)
     assert(pendReq != NULL);
     assert(processorNum < processorCount);
 
+    // fprintf(stderr, "cache's coherCallbk called on proc=%d, addr=%lx\n", processorNum, addr);
     // "simpleCache" does not support invalidations.
-    if (type != DATA_RECV)
+    if (type != DATA_RECV) {
         return;
+    }
+    
+    fprintf(stderr, "memReq(proc=%d, addr=%lx) ready from coherence callback\n", processorNum, addr);
 
     if (pendReq->processorNum == processorNum && pendReq->addr == addr)
     {
@@ -157,12 +161,14 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
 
     if (perm == 1)
     {
+        fprintf(stderr, "memReq(proc=%d, addr=%lx) ready immediately\n", processorNum, addr);
         // create callback for next tick
         pr->next = readyReq;
         readyReq = pr;
     }
     else
     {
+        fprintf(stderr, "memReq(proc=%d, addr=%lx) stalled\n", processorNum, addr);
         // create pending callback
         pr->next = pendReq;
         pendReq = pr;
@@ -177,6 +183,7 @@ int tick()
     while (pr != NULL)
     {
         pendingRequest* t = pr;
+        fprintf(stderr, "cache calling memReqCallback of proc %d\n", pr->processorNum);
         pr->callback(pr->processorNum, pr->tag);
         pr = pr->next;
         free(t);
