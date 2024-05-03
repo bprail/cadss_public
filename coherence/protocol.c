@@ -83,12 +83,12 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
         case MODIFIED:
             // indicateShared(addr, procNum); // Needed for E state
             if (reqType == READEX) {
-                fprintf(stderr, " - Am modified, snooped READEX\n");
+                // fprintf(stderr, " - Am modified, snooped READEX\n");
                 sendData(addr, procNum); 
                 *ca = INVALIDATE;
                 return INVALID;
             } else if (reqType == READSHARED) {
-                fprintf(stderr, " - Am modified, snooped READSHARED\n");
+                // fprintf(stderr, " - Am modified, snooped READSHARED\n");
                 sendData(addr, procNum); 
                 return SHARED_STATE;
             }
@@ -100,6 +100,10 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
                 *ca = INVALIDATE;
                 return INVALID;
             } 
+            // Not sure what SHARED req type means
+            if (reqType == DATA || reqType == SHARED) {
+                *ca = DATA_RECV;
+            }
             return SHARED_STATE;
 
         case INVALID:
@@ -107,6 +111,7 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
 
         // Stall states; hopefully we receive an update
         case SHARED_MODIFIED:
+            // Data reception in this state is only a formality for race condition preventance
             if (reqType == DATA || reqType == SHARED)
             {
                 *ca = DATA_RECV;
