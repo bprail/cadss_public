@@ -203,16 +203,6 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
             // With correct directory/arbitration, this should not trigger
             fprintf(stderr, "Duplicate DATA busReq received from proc , ignoring.");
         }
-
-        // Old code
-        // if (pendingRequest->currentState != WAITING_MEMORY) {
-        //     fprintf(stderr, "Error: on busReq w/ proc %d, pendingRequest state is %d, expected %d\n", procNum, pendingRequest->currentState, WAITING_MEMORY);
-        // }
-        // assert(pendingRequest->currentState == WAITING_MEMORY);
-        // pendingRequest->data = 1;
-        // pendingRequest->currentState = TRANSFERING_CACHE;
-        // countDown = CACHE_TRANSFER;
-        // return;
     } else {
         assert(brt != SHARED);
 
