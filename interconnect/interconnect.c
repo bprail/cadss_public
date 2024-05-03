@@ -182,6 +182,8 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
+        fprintf(stderr, "new pendingRequest(proc=%d) from busReq\n", pendingRequest->procNum);
+
 
     } else if (brt == SHARED && pendingRequest->addr == addr) {
         pendingRequest->shared = 1;
@@ -280,7 +282,7 @@ int tick()
                 bus_req_type brt
                     = (pendingRequest->shared == 1) ? SHARED : DATA;
                 if (CADSS_VERBOSE) {
-                    fprintf(stderr, "pendingRequest(proc=%d) heard from mem, sending that proc busReq(%s)\n", pendingRequest->procNum, req_type_map[brt]);
+                    fprintf(stderr, "pendingRequest(proc=%d) completed by mem\n", pendingRequest->procNum);
                 }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
@@ -295,7 +297,7 @@ int tick()
                 if (pendingRequest->shared == 1)
                     brt = SHARED;
                 if (CADSS_VERBOSE) {
-                    fprintf(stderr, "pendingRequest(proc=%d) heard from mem, sending that proc busReq(%s)\n", pendingRequest->procNum, req_type_map[brt]);
+                    fprintf(stderr, "pendingRequest(proc=%d) completed by cache\n", pendingRequest->procNum);
                 }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
@@ -321,6 +323,9 @@ int tick()
                 break;
             }
         }
+        // fprintf(stderr, "hi");
+        if(pendingRequest != NULL)
+            fprintf(stderr, "new pendingRequest(proc=%d) deq'd\n", pendingRequest->procNum);
     }
 
     return 0;
