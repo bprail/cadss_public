@@ -201,7 +201,7 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
             // pendingRequest was already served by another proc's DATA busReq
             // Occurs because all sharing procs snoop a READ(X), and send data.
             // With correct directory/arbitration, this should not trigger
-            fprintf(stderr, "Duplicate DATA busReq received from proc , ignoring.");
+            fprintf(stderr, "Duplicate DATA busReq received from proc , ignoring.\n");
         }
     } else {
         assert(brt != SHARED);
@@ -246,6 +246,9 @@ int tick()
         {
             if (pendingRequest->currentState == WAITING_CACHE)
             {
+                if (CADSS_VERBOSE) {
+                    fprintf(stderr, "pendingRequest(proc=%d, type=%s) promoting to WAITING_MEM, sending snoops and memBusReq\n", pendingRequest->procNum, req_type_map[pendingRequest->brt]);
+                }
                 // Make a request to memory.
                 countDown
                     = memComp->busReq(pendingRequest->addr,
@@ -263,6 +266,10 @@ int tick()
                     }
                 }
 
+                if (CADSS_VERBOSE) {
+                    fprintf(stderr, "Snoops sent\n");
+                }
+
                 if (pendingRequest->data == 1)
                 {
                     pendingRequest->brt = DATA;
@@ -272,9 +279,12 @@ int tick()
             {
                 bus_req_type brt
                     = (pendingRequest->shared == 1) ? SHARED : DATA;
+                if (CADSS_VERBOSE) {
+                    fprintf(stderr, "pendingRequest(proc=%d) heard from mem, sending that proc busReq(%s)\n", pendingRequest->procNum, req_type_map[brt]);
+                }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
-
+              
                 interconnNotifyState();
                 free(pendingRequest);
                 pendingRequest = NULL;
@@ -284,7 +294,9 @@ int tick()
                 bus_req_type brt = pendingRequest->brt;
                 if (pendingRequest->shared == 1)
                     brt = SHARED;
-
+                if (CADSS_VERBOSE) {
+                    fprintf(stderr, "pendingRequest(proc=%d) heard from mem, sending that proc busReq(%s)\n", pendingRequest->procNum, req_type_map[brt]);
+                }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
 

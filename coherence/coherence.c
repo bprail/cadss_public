@@ -131,7 +131,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     }
 
     if (CADSS_VERBOSE) {
-        fprintf(stderr, "busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
+        fprintf(stderr, "  busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
             processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
     }
 
