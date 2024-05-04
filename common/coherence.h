@@ -31,12 +31,4 @@ typedef struct _coher {
     debug_env_vars dbgEnv;
 } coher;
 
-typedef enum _coherence_states
-{
-    UNDEF = 0, // As tree find returns NULL, we need an unused for NULL
-    MODIFIED,
-    INVALID,
-    INVALID_MODIFIED
-} coherence_states;
-
 #endif
