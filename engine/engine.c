@@ -7,6 +7,7 @@
 #include <branch.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <fcntl.h>
 
 #include "config.h"
 #include "engine.h"
@@ -466,10 +467,12 @@ int main(int argc, char** argv)
         debugCheckNotif(&(mem_sim->dbgEnv));
     } while (progress);
 
+    const char * filename = "interconnect_stats.txt";
+    int isimOutFile = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     psim->finish(STDOUT_FILENO);
     psim->destroy();
     trace->destroy();
-    isim->finish(0);
+    isim->finish(isimOutFile);
     dlclose(csim->handle);
     free(csim);
     dlclose(psim->handle);
