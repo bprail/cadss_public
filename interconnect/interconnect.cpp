@@ -59,7 +59,7 @@ static const char* req_state_map[] = {
 };
 
 static const char* req_type_map[]
-    = {[NO_REQ] = "None", [BUSRD] = "BusRd",   [BUSWR] = "BusRdX",
+    = {[NO_REQ] = "None", [READSHARED] = "BusRd",   [READEX] = "BusRdX",
        [DATA] = "Data",   [SHARED] = "Shared", [MEMORY] = "Memory"};
 
 

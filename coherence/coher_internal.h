@@ -6,17 +6,6 @@
 
 extern interconn* inter_sim;
 
-typedef enum _coherence_states
-{
-    UNDEF = 0, // As tree find returns NULL, we need an unused for NULL
-    MODIFIED,
-    SHARED_STATE,
-    INVALID,
-    SHARED_MODIFIED,  // Shared and awaiting excl. M access
-    INVALID_MODIFIED, // Inval and awaiting excl. M access
-    INVALID_SHARED    // Invalid and awaiting shared data
-} coherence_states;
-
 static const char* coherence_state_map[] = {
     [UNDEF] = "UNDEFINED",
     [MODIFIED] = "MODIFIED",
