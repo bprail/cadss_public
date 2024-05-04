@@ -1,10 +1,14 @@
 #include <getopt.h>
 #include <stdio.h>
-
+#include <vector>
 #include <memory.h>
 #include <interconnect_internal.h>
 #include <iostream>
 #include <stree.h>
+#include <coherence.h>
+
+
+typedef std::vector<coherence_states> snoop_recipients;
 
 
 typedef enum _bus_req_state
@@ -31,6 +35,7 @@ typedef struct _bus_req {
 
 bus_req* pendingRequest = NULL;
 bus_req** queuedRequests;
+tree_t ** coherStates;
 interconn* self;
 coher* coherComp;
 memory* memComp;
@@ -63,7 +68,15 @@ void interconnNotifyState(void);
 
 using namespace std;
 
-
+snoop_recipients check_sharers(uint64_t addr){
+    snoop_recipients sharers ;
+    for(int pNum=0; pNum<processorCount;pNum++){
+        void * treestate = tree_find(coherStates[pNum], addr);
+        // *reinterpret_cast<double*>(&treestate)
+        sharers.push_back(*reinterpret_cast<coherence_states*>(treestate));
+    }
+    return sharers; 
+} 
 // Helper methods for per-processor request queues.
 static void enqBusRequest(bus_req* pr, int procNum)
 {
@@ -197,9 +210,11 @@ extern "C" void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum){
 }
 
 
-extern "C" void registerCoher_cpp(coher* cc)
+extern "C" void registerCoher_cpp(coher* cc, void ** cohStateTree)
 {
+    
     coherComp = cc;
+    coherStates = (tree_t**) cohStateTree;
 }
 
 void memReqCallback(int procNum, uint64_t addr)
@@ -251,10 +266,17 @@ extern "C" int tick_cpp()
                 pendingRequest->currentState = WAITING_MEMORY;
 
                 // The processors will snoop for this request as well.
-                for (int i = 0; i < processorCount; i++)
-                {
-                    if (pendingRequest->procNum != i)
-                    {
+                // for (int i = 0; i < processorCount; i++)
+                // {
+                //     if (pendingRequest->procNum != i)
+                //     {
+                //         coherComp->busReq(pendingRequest->brt,
+                //                           pendingRequest->addr, i);
+                //     }
+                // }
+                snoop_recipients sharers = check_sharers(pendingRequest->addr);
+                for(int i=0; i<sharers.size(); ++i){
+                    if(sharers[i]!= INVALID && sharers[i] != UNDEF){
                         coherComp->busReq(pendingRequest->brt,
                                           pendingRequest->addr, i);
                     }
