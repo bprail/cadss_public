@@ -6,13 +6,13 @@
 
 extern interconn* inter_sim;
 
-// typedef enum _coherence_states
-// {
-//     UNDEF = 0, // As tree find returns NULL, we need an unused for NULL
-//     MODIFIED,
-//     INVALID,
-//     INVALID_MODIFIED
-// } coherence_states;
+typedef enum _coherence_states
+{
+    UNDEF = 0, // As tree find returns NULL, we need an unused for NULL
+    MODIFIED,
+    INVALID,
+    INVALID_MODIFIED
+} coherence_states;
 
 typedef enum _coherence_scheme
 {
