@@ -34,6 +34,8 @@ coher* init(coher_sim_args* csa)
         }
     }
 
+    // fprintf(stdout, "Using coherence scheme %i\n", cs);
+
     if (processorCount < 1 || processorCount > 256)
     {
         fprintf(stderr,
@@ -98,11 +100,10 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     switch (cs)
     {
         case MI:
-            nextState
-                = snoopMI(reqType, &ca, currentState, addr, processorNum);
+            nextState = snoopMI(reqType, &ca, currentState, addr, processorNum);
             break;
         case MSI:
-            // TODO: Implement this.
+            nextState = snoopMSI(reqType, &ca, currentState, addr, processorNum);
             break;
         case MESI:
             // TODO: Implement this.
@@ -125,9 +126,13 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
         case NO_ACTION:
             cacheCallback(ca, processorNum, addr);
             break;
-
         default:
             assert(0);
+    }
+
+    if (CADSS_VERBOSE) {
+        fprintf(stdout, "busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
+            processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
     }
 
     // If the destination state is invalid, that is an implicit
@@ -143,7 +148,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     {
         setState(addr, processorNum, nextState);
     }
-
+  
     return 0;
 }
 
@@ -166,7 +171,8 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
             break;
 
         case MSI:
-            // TODO: Implement this.
+            nextState = cacheMSI(is_read, &permAvail, currentState, addr,
+                                processorNum);
             break;
 
         case MESI:
@@ -186,6 +192,11 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
             break;
     }
 
+    if (CADSS_VERBOSE) {
+        fprintf(stdout, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
+            processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
+    }
+  
     setState(addr, processorNum, nextState);
     return permAvail;
 }
@@ -216,8 +227,15 @@ uint8_t invlReq(uint64_t addr, int processorNum)
             break;
 
         case MSI:
-            // TODO: Implement this.
+            // Unsure about this - copied for now
+            nextState = INVALID;
+            if (currentState != INVALID)
+            {
+                inter_sim->busReq(DATA, addr, processorNum);
+                flush = 1;
+            }
             break;
+
         case MESI:
             // TODO: Implement this.
             break;

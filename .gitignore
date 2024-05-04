@@ -12,3 +12,5 @@ coherence/libcoherence.so
 interconnect/libinterconnect.so
 memory/libmemory.so
 simpleCache/libsimpleCache.so
+branchCPP/libbranchCPP.so
+build/
