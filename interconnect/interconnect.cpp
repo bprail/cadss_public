@@ -6,7 +6,10 @@
 #include <iostream>
 #include <stree.h>
 #include <coherence.h>
-
+#include <assert.h>
+#include <fstream>
+#include <cstdio>
+#include <sstream>
 
 typedef std::vector<coherence_states> snoop_recipients;
 
@@ -43,6 +46,9 @@ memory* memComp;
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
 
+std::vector<long int> numSnoops;
+// numSnoops.resize(processorCount, 0);
+
 static const char* req_state_map[] = {
     [NONE] = "None",
     [QUEUED] = "Queued",
@@ -75,6 +81,7 @@ snoop_recipients check_sharers(uint64_t addr){
         // *reinterpret_cast<double*>(&treestate)
         sharers.push_back(*reinterpret_cast<coherence_states*>(treestate));
     }
+    assert(sharers.size() == processorCount); 
     return sharers; 
 } 
 // Helper methods for per-processor request queues.
@@ -158,6 +165,7 @@ extern "C" void init_cpp(inter_sim_args* isa, interconn* self_c)
     self = self_c;
     memComp = isa->memory;
     memComp->registerInterconnect(self);
+    numSnoops.resize(processorCount, 0);
 
 }
 
@@ -277,6 +285,7 @@ extern "C" int tick_cpp()
                 snoop_recipients sharers = check_sharers(pendingRequest->addr);
                 for(int i=0; i<sharers.size(); ++i){
                     if(sharers[i]!= INVALID && sharers[i] != UNDEF){
+                        numSnoops[i]++;
                         coherComp->busReq(pendingRequest->brt,
                                           pendingRequest->addr, i);
                     }
@@ -394,8 +403,21 @@ extern "C" int busReqCacheTransfer_cpp(uint64_t addr, int procNum)
 }
 
 extern "C" int finish_cpp(int outFd){
-    memComp->si.finish(outFd);
-    std::cout<<"Hi from CPP using cout"<<endl;
+    memComp->si.finish(0);
+    FILE* file = fdopen(outFd, "w");
+    if(file != nullptr){
+        std::ostringstream oss;
+        oss << "Inteconnect Stats "<<std::endl;
+        oss << "Number of Snoops Recieved"<<std::endl;
+        for(int i=0; i<processorCount; ++i){
+            oss<<"  Core "<<i<<": "<<numSnoops[i]<<std::endl;
+        }
+        fwrite(oss.str().c_str(), sizeof(char), oss.str().size(), file);
+        fclose(file);
+    }else{
+        std::cout<<"Unable to open interconnect file to write stats"<<endl;
+    }
+
     return 0;
 }
 
