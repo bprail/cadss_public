@@ -34,7 +34,7 @@ coher* init(coher_sim_args* csa)
         }
     }
 
-    fprintf(stderr, "Using coherence scheme %i\n", cs);
+    // fprintf(stdout, "Using coherence scheme %i\n", cs);
 
     if (processorCount < 1 || processorCount > 256)
     {
@@ -131,7 +131,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     }
 
     if (CADSS_VERBOSE) {
-        fprintf(stderr, "busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
+        fprintf(stdout, "busReq(req=%i, addr=0x%lx, proc=%i): %s -> %s\n", reqType, addr, 
             processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
     }
 
@@ -193,7 +193,7 @@ uint8_t permReq(uint8_t is_read, uint64_t addr, int processorNum)
     }
 
     if (CADSS_VERBOSE) {
-        fprintf(stderr, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
+        fprintf(stdout, "permReq(read=%i, addr=0x%lx, proc=%i): %s -> %s\n", is_read, addr, 
             processorNum, coherence_state_map[currentState], coherence_state_map[nextState]);
     }
   

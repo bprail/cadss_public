@@ -13,6 +13,7 @@
 
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
+int LOG_TO_FILE = 1;
 
 void printHelp(char* prog)
 {
@@ -198,6 +199,20 @@ int main(int argc, char** argv)
     char* coherName = NULL;
     char* interName = NULL;
     char* memName = NULL;
+
+    // Added output redirection code
+    FILE *logFile;
+    if (LOG_TO_FILE) {
+        logFile = fopen("output.txt", "w");
+        if (logFile == NULL) {
+            perror("Error opening file");
+            return 1;
+        }
+        if (freopen("output.txt", "w", stdout) == NULL) {
+            perror("freopen");
+            return 1;
+        }
+    }
 
     // TODO - switch to getopt_long that accepts -- arguments
     while ((opt = getopt(argc, argv, ":hvc:p:o:n:i:b:t:s:m:d:")) != -1)
@@ -479,6 +494,9 @@ int main(int argc, char** argv)
     free(trace);
     dlclose(msim->handle);
     free(msim);
+
+    if (LOG_TO_FILE)
+        fclose(logFile);
 
     return 0;
 }
