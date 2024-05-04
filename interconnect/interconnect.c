@@ -12,9 +12,9 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum){
 }
 
 
-void registerCoher(coher* cc)
+void registerCoher(coher* cc, void ** cohStateTree)
 {
-    registerCoher_cpp(cc);
+    registerCoher_cpp(cc, cohStateTree);
 }
 
 int tick()

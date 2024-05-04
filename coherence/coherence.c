@@ -59,7 +59,7 @@ coher* init(coher_sim_args* csa)
     self->invlReq = invlReq;
     self->registerCacheInterface = registerCacheInterface;
 
-    inter_sim->registerCoher(self); // this should probably allow the interconnect to see the stree 
+    inter_sim->registerCoher(self, coherStates); // this should probably allow the interconnect to see the stree 
 
     return self;
 }
