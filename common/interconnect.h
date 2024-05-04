@@ -7,8 +7,8 @@ struct _memory;
 typedef enum _bus_req_type
 {
     NO_REQ,
-    BUSRD,
-    BUSWR,
+    READSHARED,
+    READEX,
     DATA,
     SHARED,
     MEMORY

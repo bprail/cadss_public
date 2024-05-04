@@ -33,6 +33,7 @@ memory* memComp;
 
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
+int PENDING_REQUEST_DEBUG = 0;
 
 static const char* req_state_map[] = {
     [NONE] = "None",
@@ -44,8 +45,8 @@ static const char* req_state_map[] = {
 };
 
 static const char* req_type_map[]
-    = {[NO_REQ] = "None", [BUSRD] = "BusRd",   [BUSWR] = "BusRdX",
-       [DATA] = "Data",   [SHARED] = "Shared", [MEMORY] = "Memory"};
+    = {[NO_REQ] = "None", [READSHARED] = "BusRd",   [READEX] = "BusRdX",
+       [DATA] = "Data",   [MEMORY] = "Memory"}; // [SHARED] = "Shared",
 
 const int CACHE_DELAY = 10;
 const int CACHE_TRANSFER = 10;
@@ -170,8 +171,7 @@ void memReqCallback(int procNum, uint64_t addr)
 
 void busReq(bus_req_type brt, uint64_t addr, int procNum)
 {
-    if (pendingRequest == NULL)
-    {
+    if (pendingRequest == NULL) { // Dequeue a request and put in in current
         assert(brt != SHARED);
 
         bus_req* nextReq = calloc(1, sizeof(bus_req));
@@ -183,24 +183,31 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
+        if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG)
+            fprintf(stdout, "new pendingRequest(proc=%d) from busReq\n", pendingRequest->procNum);
 
-        return;
-    }
-    else if (brt == SHARED && pendingRequest->addr == addr)
-    {
+
+    } else if (brt == SHARED && pendingRequest->addr == addr) {
         pendingRequest->shared = 1;
-        return;
-    }
-    else if (brt == DATA && pendingRequest->addr == addr)
-    {
-        assert(pendingRequest->currentState == WAITING_MEMORY);
-        pendingRequest->data = 1;
-        pendingRequest->currentState = TRANSFERING_CACHE;
-        countDown = CACHE_TRANSFER;
-        return;
-    }
-    else
-    {
+
+    } else if (brt == DATA && pendingRequest->addr == addr) {   
+        assert(pendingRequest->currentState == WAITING_MEMORY ||
+               pendingRequest->currentState == TRANSFERING_CACHE ||
+               pendingRequest->currentState == TRANSFERING_MEMORY);
+
+        if (pendingRequest->currentState == WAITING_MEMORY) {
+            // This DATA busReq addresses the current pending request
+            pendingRequest->data = 1;
+            pendingRequest->currentState = TRANSFERING_CACHE;
+            countDown = CACHE_TRANSFER;
+            return;
+        } else if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
+            // pendingRequest was already served by another proc's DATA busReq
+            // Occurs because all sharing procs snoop a READ(X), and send data.
+            // With correct directory/arbitration, this should not trigger
+            fprintf(stdout, "Duplicate DATA busReq received from proc , ignoring.\n");
+        }
+    } else {
         assert(brt != SHARED);
 
         bus_req* nextReq = calloc(1, sizeof(bus_req));
@@ -231,6 +238,8 @@ int tick()
         // If the count-down has elapsed (or there hasn't been a
         // cache-to-cache transfer, the memory will respond with
         // the data.
+
+        // This only ever triggers in WAITING_MEMORY
         if (pendingRequest->dataAvail)
         {
             pendingRequest->currentState = TRANSFERING_MEMORY;
@@ -241,6 +250,9 @@ int tick()
         {
             if (pendingRequest->currentState == WAITING_CACHE)
             {
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
+                    fprintf(stdout, "pendingRequest(proc=%d, type=%s) promoting to WAITING_MEM, sending snoops and memBusReq\n", pendingRequest->procNum, req_type_map[pendingRequest->brt]);
+                }
                 // Make a request to memory.
                 countDown
                     = memComp->busReq(pendingRequest->addr,
@@ -258,6 +270,10 @@ int tick()
                     }
                 }
 
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
+                    fprintf(stdout, "Snoops sent\n");
+                }
+
                 if (pendingRequest->data == 1)
                 {
                     pendingRequest->brt = DATA;
@@ -267,9 +283,12 @@ int tick()
             {
                 bus_req_type brt
                     = (pendingRequest->shared == 1) ? SHARED : DATA;
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
+                    fprintf(stdout, "pendingRequest(proc=%d) completed by mem\n", pendingRequest->procNum);
+                }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
-
+              
                 interconnNotifyState();
                 free(pendingRequest);
                 pendingRequest = NULL;
@@ -279,7 +298,9 @@ int tick()
                 bus_req_type brt = pendingRequest->brt;
                 if (pendingRequest->shared == 1)
                     brt = SHARED;
-
+                if (CADSS_VERBOSE && PENDING_REQUEST_DEBUG) {
+                    fprintf(stdout, "pendingRequest(proc=%d) completed by cache\n", pendingRequest->procNum);
+                }
                 coherComp->busReq(brt, pendingRequest->addr,
                                   pendingRequest->procNum);
 
@@ -304,6 +325,8 @@ int tick()
                 break;
             }
         }
+        if(CADSS_VERBOSE && PENDING_REQUEST_DEBUG && pendingRequest != NULL)
+            fprintf(stdout, "new pendingRequest(proc=%d) deq'd\n", pendingRequest->procNum);
     }
 
     return 0;
