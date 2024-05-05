@@ -6,7 +6,7 @@
  * assignment in 15-213/18-213/15-513
  */
 
-#include "stree.h"
+#include "stree_cpp.h"
 
 static void free_subtree(node_t* x, free_fun_t free_fun);
 static void left_rotate(tree_t* tree, node_t* x);

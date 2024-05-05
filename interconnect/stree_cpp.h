@@ -29,6 +29,11 @@ typedef struct {
     size_t comparison_count;
 } tree_t;
 
+#pragma once
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 tree_t* tree_new(void);
 
 /* Delete all nodes in tree, applying free_fun to each record */
@@ -46,5 +51,9 @@ void* tree_remove(tree_t* tree, tkey_t key);
 
 /* Print keys in tree */
 void tree_show(tree_t* tree, bool tree_mode);
+
+#ifdef __cplusplus  
+}
+#endif
 
 #endif /* stree.h */

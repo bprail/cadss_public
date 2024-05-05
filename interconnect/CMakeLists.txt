@@ -1,5 +1,5 @@
 project(interconnect)
-add_library(interconnect SHARED interconnect.c interconnect.cpp)
+add_library(interconnect SHARED stree_cpp.c interconnect.c interconn.cpp)
 
-set(CMAKE_CXX_FLAGS "-O2 -g -DNDEBUG -std=c++11 -fpermissive -shared -fPIC")
-target_include_directories(interconnect PRIVATE ../common ./)
+set(CMAKE_CXX_FLAGS "-g -fpermissive")
+target_include_directories(interconnect PRIVATE ../common)

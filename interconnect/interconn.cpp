@@ -2,14 +2,15 @@
 #include <stdio.h>
 #include <vector>
 #include <memory.h>
-#include <interconnect_internal.h>
+#include "interconn.h"
 #include <iostream>
-#include <stree.h>
+#include "stree_cpp.h"
 #include <coherence.h>
 #include <assert.h>
 #include <fstream>
 #include <cstdio>
 #include <sstream>
+#include <cstdint>
 
 typedef std::vector<coherence_states> snoop_recipients;
 
@@ -74,16 +75,46 @@ void interconnNotifyState(void);
 
 using namespace std;
 
+coherence_states getCohFromInt(long unsigned int value){
+    switch(value){
+        case 0: 
+        case 3:
+        return INVALID;
+        break;
+        case 1:
+        return MODIFIED;
+        break;
+        case 2:
+        return SHARED_STATE;
+        break;
+        case 4:
+        return SHARED_MODIFIED;
+        break;
+        case 5:
+        return INVALID_MODIFIED;
+        break;
+        case 6:
+        return INVALID_SHARED;
+        break;
+        default:
+        return UNDEF;
+        break;
+    }
+    return UNDEF;
+}
+
 snoop_recipients check_sharers(uint64_t addr){
     snoop_recipients sharers ;
     for(int pNum=0; pNum<processorCount;pNum++){
         void * treestate = tree_find(coherStates[pNum], addr);
         // *reinterpret_cast<double*>(&treestate)
-        sharers.push_back(*reinterpret_cast<coherence_states*>(treestate));
+    
+        auto raw_val = reinterpret_cast<std::uintptr_t>(treestate);
+        sharers.push_back(getCohFromInt(raw_val));
     }
     assert(sharers.size() == processorCount); 
     return sharers; 
-} 
+}
 // Helper methods for per-processor request queues.
 static void enqBusRequest(bus_req* pr, int procNum)
 {
@@ -146,7 +177,7 @@ static int busRequestQueueSize(int procNum)
 extern "C" void init_cpp(inter_sim_args* isa, interconn* self_c)
 {
     int op;
-
+    std::cout <<"Called from INIT CPP";
     while ((op = getopt(isa->arg_count, isa->arg_list, "v")) != -1)
     {
         switch (op)
@@ -156,10 +187,10 @@ extern "C" void init_cpp(inter_sim_args* isa, interconn* self_c)
         }
     }
 
-    queuedRequests = malloc(sizeof(bus_req*) * processorCount);
+    queuedRequests = (bus_req**) malloc(sizeof(bus_req*) * processorCount);
     for (int i = 0; i < processorCount; i++)
     {
-        queuedRequests[i] = NULL;
+        queuedRequests[i] = nullptr;
     }
 
     self = self_c;
@@ -177,12 +208,13 @@ extern "C" void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum){
     {
         assert(brt != SHARED);
 
-        bus_req* nextReq = calloc(1, sizeof(bus_req));
+        bus_req* nextReq = (bus_req *) malloc(sizeof(bus_req));
         nextReq->brt = brt;
         nextReq->currentState = WAITING_CACHE;
         nextReq->addr = addr;
         nextReq->procNum = procNum;
         nextReq->dataAvail = 0;
+        nextReq->next = nullptr;
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
@@ -194,24 +226,35 @@ extern "C" void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum){
         pendingRequest->shared = 1;
         return;
     }
-    else if (brt == DATA && pendingRequest->addr == addr)
-    {
-        assert(pendingRequest->currentState == WAITING_MEMORY);
-        pendingRequest->data = 1;
-        pendingRequest->currentState = TRANSFERING_CACHE;
-        countDown = CACHE_TRANSFER;
-        return;
-    }
-    else
+    else if (brt == DATA && pendingRequest->addr == addr) {   
+        assert(pendingRequest->currentState == WAITING_MEMORY ||
+               pendingRequest->currentState == TRANSFERING_CACHE ||
+               pendingRequest->currentState == TRANSFERING_MEMORY);
+
+        if (pendingRequest->currentState == WAITING_MEMORY) {
+            // This DATA busReq addresses the current pending request
+            pendingRequest->data = 1;
+            pendingRequest->currentState = TRANSFERING_CACHE;
+            countDown = CACHE_TRANSFER;
+            return;
+        } else if (CADSS_VERBOSE) {
+            // pendingRequest was already served by another proc's DATA busReq
+            // Occurs because all sharing procs snoop a READ(X), and send data.
+            // With correct directory/arbitration, this should not trigger
+            fprintf(stdout, "Duplicate DATA busReq received from proc , ignoring.\n");
+        }
+    
+    } else
     {
         assert(brt != SHARED);
 
-        bus_req* nextReq = calloc(1, sizeof(bus_req));
+        bus_req* nextReq = (bus_req*) malloc(sizeof(bus_req));
         nextReq->brt = brt;
         nextReq->currentState = QUEUED;
         nextReq->addr = addr;
         nextReq->procNum = procNum;
         nextReq->dataAvail = 0;
+        nextReq->next = nullptr;
 
         enqBusRequest(nextReq, procNum);
     }
@@ -222,7 +265,7 @@ extern "C" void registerCoher_cpp(coher* cc, void ** cohStateTree)
 {
     
     coherComp = cc;
-    coherStates = (tree_t**) cohStateTree;
+    coherStates = reinterpret_cast<tree_t**>(cohStateTree);
 }
 
 void memReqCallback(int procNum, uint64_t addr)
@@ -273,21 +316,14 @@ extern "C" int tick_cpp()
 
                 pendingRequest->currentState = WAITING_MEMORY;
 
-                // The processors will snoop for this request as well.
-                // for (int i = 0; i < processorCount; i++)
-                // {
-                //     if (pendingRequest->procNum != i)
-                //     {
-                //         coherComp->busReq(pendingRequest->brt,
-                //                           pendingRequest->addr, i);
-                //     }
-                // }
                 snoop_recipients sharers = check_sharers(pendingRequest->addr);
                 for(int i=0; i<sharers.size(); ++i){
-                    if(sharers[i]!= INVALID && sharers[i] != UNDEF){
+                    if((sharers[i]== SHARED_STATE || sharers[i] == MODIFIED) && i != pendingRequest->procNum){
                         numSnoops[i]++;
                         coherComp->busReq(pendingRequest->brt,
                                           pendingRequest->addr, i);
+                        //if this was a readshared, we only need to snoop one cache to get data and correct state
+                        if((pendingRequest->brt) == READSHARED) break;  
                     }
                 }
 

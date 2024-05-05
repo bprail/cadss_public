@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include <memory.h>
-#include <interconnect_internal.h>
+#include "interconn.h"
 
 
 interconn * self_c;
