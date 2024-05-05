@@ -15,6 +15,7 @@
 typedef std::vector<coherence_states> snoop_recipients;
 
 
+
 typedef enum _bus_req_state
 {
     NONE,
@@ -33,6 +34,7 @@ typedef struct _bus_req {
     uint8_t shared;
     uint8_t data;
     uint8_t dataAvail;
+    double enqTick;
     struct _bus_req* next;
 } bus_req;
 
@@ -46,8 +48,14 @@ memory* memComp;
 
 int CADSS_VERBOSE = 0;
 int processorCount = 1;
+double tick_count_gl;
 
+
+//stat Counters
 std::vector<long int> numSnoops;
+std::vector<double> MAT;
+std::vector<long int> numAccesses;
+int numCPDirAccesses;
 // numSnoops.resize(processorCount, 0);
 
 static const char* req_state_map[] = {
@@ -103,21 +111,35 @@ coherence_states getCohFromInt(long unsigned int value){
     return UNDEF;
 }
 
-snoop_recipients check_sharers(uint64_t addr){
+snoop_recipients check_sharers(uint64_t addr, bool isInCP=true){
     snoop_recipients sharers ;
+    if(isInCP){
+        numCPDirAccesses++;
+    }
     for(int pNum=0; pNum<processorCount;pNum++){
         void * treestate = tree_find(coherStates[pNum], addr);
         // *reinterpret_cast<double*>(&treestate)
-    
+
         auto raw_val = reinterpret_cast<std::uintptr_t>(treestate);
         sharers.push_back(getCohFromInt(raw_val));
     }
     assert(sharers.size() == processorCount); 
     return sharers; 
 }
+
+void freeReq(bus_req* br){
+    int pNum = br->procNum;
+    double accessTime = double(tick_count_gl) - br->enqTick;
+
+    MAT[pNum] += accessTime;
+    numAccesses[pNum]++;
+    free(br);
+}
+
 // Helper methods for per-processor request queues.
 static void enqBusRequest(bus_req* pr, int procNum)
 {
+    pr->enqTick = double(tick_count_gl);
     bus_req* iter;
 
     // No items in the queue.
@@ -196,7 +218,10 @@ extern "C" void init_cpp(inter_sim_args* isa, interconn* self_c)
     self = self_c;
     memComp = isa->memory;
     memComp->registerInterconnect(self);
+    tick_count_gl =0.0;
     numSnoops.resize(processorCount, 0);
+    MAT.resize(processorCount, 0.0);
+    numAccesses.resize(processorCount, 0);
 
 }
 
@@ -215,6 +240,8 @@ extern "C" void busReq_cpp(bus_req_type brt, uint64_t addr, int procNum){
         nextReq->procNum = procNum;
         nextReq->dataAvail = 0;
         nextReq->next = nullptr;
+        nextReq->enqTick = double(tick_count_gl);
+
 
         pendingRequest = nextReq;
         countDown = CACHE_DELAY;
@@ -285,7 +312,7 @@ void memReqCallback(int procNum, uint64_t addr)
 extern "C" int tick_cpp()
 {
     memComp->si.tick();
-
+    tick_count_gl+=1.0;
     if (self->dbgEnv.cadssDbgWatchedComp && !self->dbgEnv.cadssDbgNotifyState)
     {
         printInterconnState();
@@ -340,7 +367,7 @@ extern "C" int tick_cpp()
                                   pendingRequest->procNum);
 
                 interconnNotifyState();
-                free(pendingRequest);
+                freeReq(pendingRequest);
                 pendingRequest = NULL;
             }
             else if (pendingRequest->currentState == TRANSFERING_CACHE)
@@ -353,7 +380,7 @@ extern "C" int tick_cpp()
                                   pendingRequest->procNum);
 
                 interconnNotifyState();
-                free(pendingRequest);
+                freeReq(pendingRequest);
                 pendingRequest = NULL;
             }
         }
@@ -366,6 +393,7 @@ extern "C" int tick_cpp()
             if (queuedRequests[pos] != NULL)
             {
                 pendingRequest = deqBusRequest(pos);
+                pendingRequest->enqTick = double(tick_count_gl);
                 countDown = CACHE_DELAY;
                 pendingRequest->currentState = WAITING_CACHE;
 
@@ -448,6 +476,16 @@ extern "C" int finish_cpp(int outFd){
         for(int i=0; i<processorCount; ++i){
             oss<<"  Core "<<i<<": "<<numSnoops[i]<<std::endl;
         }
+        oss << "Number of Critical Path Directory Accesses: " << numCPDirAccesses<<std::endl;
+        oss << "Number of Accesses: "<< std::endl;
+        for(int i=0; i<processorCount; ++i){
+            oss<<"  Core "<<i<<": "<<numAccesses[i]<<std::endl;
+        }
+        oss << "Average Memory Access Time (AMAT): "<< std::endl;
+        for(int i=0; i<processorCount; ++i){
+            oss<<"  Core "<<i<<": "<<MAT[i]/numAccesses[i]<<std::endl;
+        }
+
         fwrite(oss.str().c_str(), sizeof(char), oss.str().size(), file);
         fclose(file);
     }else{
