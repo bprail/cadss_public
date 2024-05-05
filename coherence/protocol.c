@@ -99,6 +99,11 @@ snoopMSI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
                 *ca = INVALIDATE;
                 return INVALID;
             } 
+
+            if (reqType == READSHARED) {
+                sendData(addr, procNum);
+                return SHARED_STATE;
+            }
             // Not sure what SHARED req type means
             if (reqType == DATA || reqType == SHARED) {
                 *ca = DATA_RECV;
