@@ -7,6 +7,7 @@
 #include <branch.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <fcntl.h>
 
 #include "config.h"
 #include "engine.h"
@@ -271,7 +272,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "Failed to open setting file - %s\n", settingFile);
         return 0;
     }
-
+    //I think this part just reads in the configuration options for each of the componenets
+    //what is this stuff about the interconnect - what does it do?
     if (interName == NULL)
     {
         isim = loadSim("interconnect", "interconnect");
@@ -465,10 +467,12 @@ int main(int argc, char** argv)
         debugCheckNotif(&(mem_sim->dbgEnv));
     } while (progress);
 
+    const char * filename = "interconnect_stats.txt";
+    int isimOutFile = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     psim->finish(STDOUT_FILENO);
     psim->destroy();
     trace->destroy();
-
+    isim->finish(isimOutFile);
     dlclose(csim->handle);
     free(csim);
     dlclose(psim->handle);
