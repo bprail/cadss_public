@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
 
 typedef struct _pendingRequest {
     int64_t tag;
@@ -12,6 +13,8 @@ typedef struct _pendingRequest {
 } pendingRequest;
 
 cache* self = NULL;
+coher* coherComp = NULL;
+
 int processorCount = 1;
 int CADSS_VERBOSE = 0;
 pendingRequest pending = {0};
@@ -19,6 +22,7 @@ int countDown = 0;
 
 void memoryRequest(trace_op* op, int processorNum, int64_t tag,
                    void (*callback)(int, int64_t));
+void coherCallback(int type, int procNum, int64_t addr);
 
 cache* init(cache_sim_args* csa)
 {
@@ -58,7 +62,31 @@ cache* init(cache_sim_args* csa)
     self->si.finish = finish;
     self->si.destroy = destroy;
 
+    coherComp = csa->coherComp;
+    coherComp->registerCacheInterface(coherCallback);
+
     return self;
+}
+
+// This routine is a linkage to the rest of the memory hierarchy
+void coherCallback(int type, int procNum, int64_t addr)
+{
+    switch (type)
+    {
+        case NO_ACTION:
+        case DATA_RECV:
+            // TODO: check that the addr is the pending access
+            //  This indicates that the cache has received data from memory
+            countDown = 1;
+            break;
+
+        case INVALIDATE:
+            // This is taught later in the semester.
+            break;
+
+        default:
+            break;
+    }  
 }
 
 void memoryRequest(trace_op* op, int processorNum, int64_t tag,
@@ -79,19 +107,24 @@ void memoryRequest(trace_op* op, int processorNum, int64_t tag,
 
     // In a real cache simulator, the delay is based
     // on whether the request is a hit or miss.
-    countDown = 1;
+    countDown = 2;
+    
+    // Tell memory about this request
+    // TODO: only do this if this is a miss
+    // TODO: evictions will also need a call to memory with
+    //  invlReq(addr, procNum) -> true if waiting, false if proceed
+    coherComp->permReq(false, op->memAddress, processorNum);
 }
 
 int tick()
 {
-    if (countDown > 0)
+    // Advance ticks in the coherence component.
+    coherComp->si.tick();
+    
+    if (countDown == 1)
     {
-        countDown--;
-        if (countDown == 0)
-        {
-            assert(pending.memCallback != NULL);
-            pending.memCallback(pending.procNum, pending.tag);
-        }
+        assert(pending.memCallback != NULL);
+        pending.memCallback(pending.procNum, pending.tag);
     }
 
     return 1;
