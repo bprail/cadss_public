@@ -202,6 +202,7 @@ uint8_t invlReq(uint64_t addr, int processorNum)
     }
 
     currentState = getState(addr, processorNum);
+	//printf("%d - %d - %p\n", processorNum, currentState, addr);
 
     flush = 0;
     switch (cs)
