@@ -247,21 +247,25 @@ int tick()
                                       pendingRequest->procNum, memReqCallback);
 
                 pendingRequest->currentState = WAITING_MEMORY;
+				
+				if (pendingRequest->brt != DATA)
+				{
 
-                // The processors will snoop for this request as well.
-                for (int i = 0; i < processorCount; i++)
-                {
-                    if (pendingRequest->procNum != i)
-                    {
-                        coherComp->busReq(pendingRequest->brt,
-                                          pendingRequest->addr, i);
-                    }
-                }
+					// The processors will snoop for this request as well.
+					for (int i = 0; i < processorCount; i++)
+					{
+						if (pendingRequest->procNum != i)
+						{
+							coherComp->busReq(pendingRequest->brt,
+											  pendingRequest->addr, i);
+						}
+					}
 
-                if (pendingRequest->data == 1)
-                {
-                    pendingRequest->brt = DATA;
-                }
+					if (pendingRequest->data == 1)
+					{
+						pendingRequest->brt = DATA;
+					}
+				}
             }
             else if (pendingRequest->currentState == TRANSFERING_MEMORY)
             {
