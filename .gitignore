@@ -12,3 +12,4 @@ coherence/libcoherence.so
 interconnect/libinterconnect.so
 memory/libmemory.so
 simpleCache/libsimpleCache.so
+.gitmodules
