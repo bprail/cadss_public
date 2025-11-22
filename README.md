@@ -9,3 +9,7 @@ initialization of simple components.
 Reference implentations are available upon request.
 
 Other support code and files can be found at https://github.com/bprail/cadss_support.
+
+At CMU, trace files are available in /afs/cs.cmu.edu/academic/class/15346-f22/public/traces/coher/
+
+There is also a support video at https://youtu.be/O2Tir0LI2xY
