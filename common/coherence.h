@@ -19,7 +19,8 @@ typedef enum _cache_action
 {
     NO_ACTION,
     DATA_RECV,
-    INVALIDATE
+    INVALIDATE,
+	FLUSH_COMPLETE
 } cache_action;
 
 typedef struct _coher {

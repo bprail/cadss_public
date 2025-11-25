@@ -55,6 +55,10 @@ snoopMI(bus_req_type reqType, cache_action* ca, coherence_states currentState,
     switch (currentState)
     {
         case INVALID:
+			if (reqType == DATA)
+			{
+				*ca = FLUSH_COMPLETE;
+			}
             return INVALID;
         case MODIFIED:
             sendData(addr, procNum);
