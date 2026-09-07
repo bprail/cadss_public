@@ -118,18 +118,6 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
             break;
     }
 
-    switch (ca)
-    {
-        case DATA_RECV:
-        case INVALIDATE:
-        case NO_ACTION:
-            cacheCallback(ca, processorNum, addr);
-            break;
-
-        default:
-            assert(0);
-    }
-
     // If the destination state is invalid, that is an implicit
     // state and does not need to be stored in the tree.
     if (nextState == INVALID)
@@ -142,6 +130,18 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
     else
     {
         setState(addr, processorNum, nextState);
+    }
+    
+    switch (ca)
+    {
+        case DATA_RECV:
+        case INVALIDATE:
+        case NO_ACTION:
+            cacheCallback(ca, processorNum, addr);
+            break;
+
+        default:
+            assert(0);
     }
 
     return 0;
