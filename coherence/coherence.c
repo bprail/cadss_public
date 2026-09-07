@@ -137,6 +137,7 @@ uint8_t busReq(bus_req_type reqType, uint64_t addr, int processorNum)
         case DATA_RECV:
         case INVALIDATE:
         case NO_ACTION:
+        case FLUSH_COMPLETE:
             cacheCallback(ca, processorNum, addr);
             break;
 
