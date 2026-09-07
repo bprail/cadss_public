@@ -191,7 +191,9 @@ void busReq(bus_req_type brt, uint64_t addr, int procNum)
         pendingRequest->shared = 1;
         return;
     }
-    else if (brt == DATA && pendingRequest->addr == addr)
+    else if (brt == DATA && 
+             pendingRequest->addr == addr &&
+             pendingRequest->currentState == WAITING_MEMORY)
     {
         assert(pendingRequest->currentState == WAITING_MEMORY);
         pendingRequest->data = 1;
@@ -257,7 +259,8 @@ int tick()
 						if (pendingRequest->procNum != i)
 						{
 							coherComp->busReq(pendingRequest->brt,
-											  pendingRequest->addr, i);
+											  pendingRequest->addr, 
+                                              i /*pendingRequest->procNum*/);
 						}
 					}
 
